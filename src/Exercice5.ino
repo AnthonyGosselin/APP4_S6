@@ -4,8 +4,6 @@ SYSTEM_THREAD(ENABLED);
 
 void outputThread();
 
-Thread thread("outputThread", outputThread);
-
 int outputPin = D6;
 int inputPin = D7;
 
@@ -15,8 +13,9 @@ bool BIT0 = false;
 enum InputState {
     initial,
     output0,
+    waitShort,
     output1,
-    wait,
+    waitLong,
 } CurrentInputState;
 
 
@@ -47,41 +46,66 @@ void setup() {
 
     attachInterrupt(inputPin, inputEvent, CHANGE);
     CurrentInputState = initial;
+
+    waitFor(Serial.isConnected, 30000);
+    Serial.println("Serial connected: starting");
+    Thread thread("outputThread", outputThread);
 }
 
 void loop() {
 	// Do we really need to make a thread if we are not using main thread (do interrupts run on main thread??)
 }
 
+// Function used to change state and perform necessary actions right away (like outputing)
+void changeInputState(InputState newInputState) {
+    switch (newInputState) {
+        case output0:
+            // Register that a 0 has been read
+            Serial.println("READ: 0");
+            break;
+        case output1:
+            // Register that a 1 has been read
+            Serial.println("READ: 1");
+            break;
+    }
+    CurrentInputState = newInputState; // Change to new state for next event
+}
+
 void inputEvent() {
     int duration = millis() - lastChangeTime;
     lastChangeTime = millis();
-    
-    // Printing (debug)
-    Serial.printlnf("Read %s impulse duration: %d ms", inputCurrentStateHigh ? "HIGH" : "LOW", duration);
-    inputCurrentStateHigh = !inputCurrentStateHigh;
 
     // If 80% higher than one clock period: must be two periods (AKA: long period)
     int longPeriodMin = clockPeriod * 1.8;
     int longPeriodMax = clockPeriod * 2.2;
+    int shortPeriodMin = clockPeriod * 0.8;
 
-    // Determine newStateDuration
+    // Determine newStateDuration (time since last change event)
     StateDuration newStateDuration;
     if (duration > longPeriodMax) {
         newStateDuration = veryLongPeriod;
     }
-    else if (duration < longPeriodMax && duration > longPeriodMin) {
+    else if (duration >= longPeriodMin && duration < longPeriodMax) {
         newStateDuration = longPeriod;
     }
-    else {
+    else if (duration >= shortPeriod && duration < longPeriodMin) {
         newStateDuration = shortPeriod;
     }
+    else {
+        Serial.printlnf("Rejecting too short impulse of %d ms", duration);
+        return;
+    }
+    
+    // Printing (debug)
+    Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
+    inputCurrentStateHigh = !inputCurrentStateHigh;
 
-    // STATE MACHINE
+
+    // STATE MACHINE: Decode Manchester
     switch (CurrentInputState) {
         case initial:
             if (newStateDuration == shortPeriod || newStateDuration == veryLongPeriod) {
-                CurrentInputState = output0;
+                changeInputState(output0);
             } 
             else {
                 Serial.println("ERROR: initial state got longPeriod");
@@ -89,29 +113,40 @@ void inputEvent() {
             break;
 
         case output0:
-            Serial.println("READ: 0");
             if (newStateDuration == shortPeriod) {
-                CurrentInputState = wait;
+               changeInputState(waitShort);
             }
             else if (newStateDuration == longPeriod) {
-                CurrentInputState = output1;
+               changeInputState(output1);
             }
             // veryLongPeriod -> stay in output0
             break;
 
-        case wait:
+        case waitShort:
             if (newStateDuration != shortPeriod) {
-                Serial.printlnf("ERROR: expected shortPeriod in wait state got state #%d", newStateDuration);
+                Serial.printlnf("ERROR: expected shortPeriod in wait state got #%d", newStateDuration);
             }
-            CurrentInputState = output0;
+            changeInputState(output0);
             break;
         
         case output1:
-            Serial.println("READ: 1");
-            if (newStateDuration != longPeriod) {
-                Serial.printlnf("ERROR: expected longPeriod in output1 state got state #%d", newStateDuration);
+            if (newStateDuration == shortPeriod) {
+                changeInputState(waitLong);
             }
-            CurrentInputState = output0;
+            else if (newStateDuration == longPeriod) {
+                changeInputState(output0);
+            }
+            else {
+                Serial.println("UNDEFINED behaviour for veryLongPeriod in inputState 'output1'");
+            }
+
+            break;
+        
+        case waitLong:
+            if (newStateDuration != shortPeriod) {
+                Serial.printlnf("ERROR: expected shortPeriod in wait state got #%d", newStateDuration);
+            }
+            changeInputState(output1);
             break;
     }
 }
@@ -132,12 +167,14 @@ void sendBitsManchester(bool bits[], int bitCount) {
         if (bits[i] == BIT1) {
             //Serial.println("Sending 1");
             // Send 1 in Manchester
+            //Serial.println("SEND: HIGH");
             output(HIGH);
             output(LOW);
         }
         else {
             //Serial.println("Sending 0");
             // Send 0 in Manchester
+            //Serial.println("SEND: LOW");
             output(LOW);
             output(HIGH);
         }
@@ -145,12 +182,15 @@ void sendBitsManchester(bool bits[], int bitCount) {
 }
 
 void outputThread() {
+    delay(3000);
+    Serial.println("Starting output loop");
     while(true) {
 
-        bool bitsToSend[] = {BIT0, BIT0, BIT1, BIT0, BIT1, BIT0};
-        sendBitsManchester(bitsToSend, 6);
+        bool bitsToSend[] = {BIT0, BIT1, BIT1, BIT1, BIT0, BIT1, BIT0, BIT1};
+        sendBitsManchester(bitsToSend, 8);
         Serial.println("---------");
         os_thread_delay_until(&lastThreadTime, 2000);
+        CurrentInputState = initial;
         
         // digitalWrite(outputPin, HIGH);
         // // Serial.println("High");
