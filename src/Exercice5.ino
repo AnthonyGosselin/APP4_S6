@@ -26,7 +26,6 @@ enum StateDuration {
     veryLongPeriod
 };
 
-StateDuration lastStateDuration = shortPeriod;
 bool skippedLastInputEvent = false;
 
 bool inputCurrentStateHigh = false;
@@ -51,7 +50,7 @@ void setup() {
 }
 
 void loop() {
-	
+	// Do we really need to make a thread if we are not using main thread (do interrupts run on main thread??)
 }
 
 void inputEvent() {
@@ -163,6 +162,8 @@ void outputThread() {
 }
 
 /*
+
+// BEAST CODE A ETIENNE:
 
 // Vars
 bool speedCalculated = false;
