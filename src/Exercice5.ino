@@ -1,4 +1,5 @@
 #include "Particle.h"
+#include "MessageManager.cpp"
 
 SYSTEM_THREAD(ENABLED);
 
@@ -201,39 +202,3 @@ void outputThread() {
 	}
 }
 
-/*
-
-// BEAST CODE A ETIENNE:
-
-// Vars
-bool speedCalculated = false;
-int speedInterrupts = 0;
-unsigned long preambStart = 0;
-int transmissionSpeed = 0;
-
-// Speed calc
-if (!speedCalculated){
-
-    if (speedInterrupts < 7){
-      if (speedInterrupts == 0)
-        preambStart = millis();
-      speedInterrupts++;
-    }
-    else{
-      // Get time since last interrupt
-      unsigned long currentTime = millis();
-      int elapsedTime = currentTime - preambStart;
-      
-      // Calculate speed by meaning
-      //elapsedTime += elapsedTime/7    // Get full length (cuts of both ends)
-      transmissionSpeed = elapsedTime/7/2;
-
-      //speedCalculated = true;
-      speedInterrupts = 0;
-
-      Serial.printlnf("%d", transmissionSpeed);
-    }
-    //Serial.printlnf("%d", speedInterrupts);
-  }
-
-  */
