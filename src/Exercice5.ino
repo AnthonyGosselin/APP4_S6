@@ -48,6 +48,8 @@ void setup() {
     attachInterrupt(inputPin, inputEvent, CHANGE);
     CurrentInputState = initial;
 
+    MessageManager msgManager = MessageManager();
+
     waitFor(Serial.isConnected, 30000);
     Serial.println("Serial connected: starting");
     Thread thread("outputThread", outputThread);

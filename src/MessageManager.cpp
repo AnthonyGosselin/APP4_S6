@@ -1,123 +1,131 @@
 
 enum ManagerState { preambule, start, entete, message, controle, end };
-uint8_t preambuleByte = 0b01010101;
-uint8_t startEndByte = 0b01111110;
+
+struct tramme {
+    uint8_t preambule = 0b01010101;
+    uint8_t startEnd = 0b01111110;
+    uint8_t typeFlag = 0b00000000;
+    uint8_t messageLength = 0b00000000;
+    uint8_t* message;
+    uint8_t crc16;
+};
+
+bool verbose = true;
 
 class MessageManager {
 
 private:
-    bool isSender = false;
-    ManagerState currentState = preambule;
+    tramme sendingTramme;
+    tramme receivingTramme;
+
+    ManagerState currentSendingState = preambule;
+    ManagerState currentReceivingState = preambule;
+
+    bool isSending = false;
 
     // Transmission speed variables
     int transmissionSpeed = 0;
     int speedInterrupts = 0;
     unsigned long firstSpeedInterruptTime = 0;
 
-    int bitsRead = 0;
-    uint8_t byteRecieved;
-
-    uint8_t typeFlagByte = 0b00000000;      // To change depending on what we want 
-    uint8_t messageLengthByte = 0b00000000;
-    uint8_t* messageBytes;
+    int byteCounter = 0;
 
 public:
-    MessageManager(bool sender): isSender(sender) {};
+    //MessageManager(bool sender): isSender(sender) {};
 
     void sendData() {
-        switch(currentState){
+        switch(currentSendingState){
 
             case preambule:
-                sendManchester(&preambuleByte);
-                currentState = start;
+                isSending = true;
+                sendManchester(&sendingTramme.preambule);
+                currentSendingState = start;
 
             case start:
-                sendManchester(&startEndByte);
-                currentState = entete;
+                sendManchester(&sendingTramme.startEnd);
+                currentSendingState = entete;
 
             case entete:
-                sendManchester(&typeFlagByte);
+                sendManchester(&sendingTramme.typeFlag);
 
-                uint8_t messageLength = sizeof(messageBytes);
+                uint8_t messageLength = sizeof(&sendingTramme.message);
                 sendManchester(&messageLength);
 
-                currentState = message;
+                currentSendingState = message;
 
             case message:
-                sendManchester(messageBytes);
-                currentState = controle;
+                sendManchester(sendingTramme.message);
+                currentSendingState = controle;
 
             case controle:
 
                 // PROCEDER au CRC16
-                // uint8_t crc16Result = CRC 
+                // sendingTramme.crc16 = CRC 
                 // sendManchester(crc16Result);
-                currentState = end;
+                currentSendingState = end;
 
             case end:
-                sendManchester(&startEndByte);
+                sendManchester(&sendingTramme.startEnd);
                 // Destroy object? Or reset? Depending if we create new object all the time or repurpose after finished tramme
+                isSending = false;
+                currentSendingState = preambule;
         }
 
         return;
     };
 
-    void receiveData(int bitRead) {
+    void receiveData(uint8_t byteReceived) {
 
-        bitsRead++;
-        int bytesRead = bitsRead / 8;
-        int bitsLeftInByte = 8 - (bitsRead % 8);
+        byteCounter++;
+        // int bytesRead = bitsRead / 8;
+        // int bitsLeftInByte = 8 - (bitsRead % 8);
 
-        byteRecieved <<= bitRead;
+        switch(currentReceivingState){
 
-        switch(currentState){
-
-            case preambule:
-                if (getTransmissionSpeed()){
-                    currentState = start;
-                }       
+            // case preambule:
+            //     if (getTransmissionSpeed()){
+            //         currentReceivingState = start;
+            //     }       
 
             case start:
                 
-                if (!bitsLeftInByte){
-                    bool isCompareOk = compareReadData(&byteRecieved, &startEndByte);
-                    currentState = entete;
-                }
+                receivingTramme.startEnd = byteReceived;
+                if (verbose) {compareReadData(&byteReceived, &sendingTramme.startEnd);}
+                currentReceivingState = entete;
 
             case entete:
 
-                if (!bitsLeftInByte){
-                    if (bytesRead < 4){
-                        typeFlagByte = byteRecieved;
-                    }
-                    else{
-                        messageLengthByte = byteRecieved;
-                        currentState = message;
-                    }
+                if (byteCounter < 3){
+                    if (verbose) {compareReadData(&byteReceived, &sendingTramme.typeFlag);}
+                    receivingTramme.typeFlag = byteReceived;
+                }
+                else{
+                    if (verbose) {compareReadData(&byteReceived, &sendingTramme.messageLength);}
+                    receivingTramme.messageLength = byteReceived;
+                    currentReceivingState = message;
                 }
                 
             case message:
 
-                if (!bitsLeftInByte){
-                    messageBytes[bytesRead-4] = byteRecieved;
+                receivingTramme.message[byteCounter-3] = byteReceived;
 
-                    if (bytesRead >= messageLengthByte + 4){
-                    currentState = controle;
-                    }
-                }
-                
+                if (sizeof(receivingTramme.message) >= receivingTramme.messageLength){
+                    if (verbose) {compareReadData(receivingTramme.message, sendingTramme.message);}
+                    currentReceivingState = controle;
+                }    
          
             case controle:
 
                 // Gerer CRC16
-                currentState = end;
+                // receivingTramme.crc16 = CRCRESULT
+                if (verbose) {compareReadData(&byteReceived, &sendingTramme.crc16);}
+                currentReceivingState = end;
 
             case end:
 
-                if (!bitsLeftInByte){
-                    bool isCompareOk = compareReadData(&byteRecieved, &startEndByte);
-                    // Destroy object? Or reset? Depending if we create new object all the time or repurpose after finished tramme
-                }
+                if (verbose) {compareReadData(&byteReceived, &sendingTramme.startEnd);}
+                byteCounter = 0;
+                currentReceivingState = start;
   
         }
 
@@ -149,28 +157,11 @@ public:
 
     bool compareReadData(uint8_t *bytesRead, uint8_t *byteCompare){
 
+        // compare and print to serial
     };
-
-    // void readManchester(uint8_t *bytesToRead, uint8_t *byteCompare){
-
-    // };
 
     void sendManchester(uint8_t *bytesToSend){
 
     };
 
 };
-
-// void MessageManager::processData(uint8_t *bytesToProcess){
-
-    
-// }
-
-// void MessageManager::readData(uint8_t *bytesToRead){
-    
-// }
-
-// MessageManager::MessageManager(bool sender){
-//     MessageManager.isSender = sender;
-
-// }
