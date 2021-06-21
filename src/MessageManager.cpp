@@ -18,9 +18,6 @@ private:
     frame sendingFrame;
     frame receivingFrame;
 
-    ManagerState currentSendingState = preambule;
-    ManagerState currentReceivingState = preambule;
-
     bool isSending = false;
 
     // Transmission speed variables
@@ -33,6 +30,9 @@ private:
     uint8_t byteConcat = 0;
 
 public:
+    ManagerState currentSendingState = preambule;
+    ManagerState currentReceivingState = preambule;
+    //MessageManager(bool sender): isSender(sender) {};
 
     bool* sendData() {
 
@@ -174,10 +174,18 @@ public:
         }
     };
 
-    bool compareCRC16(uint16_t crcReceived, uint16_t crcCalculated){
+    uint16_t crc16(const uint8_t* data_p, uint8_t length){
+        unsigned char x;
+        unsigned short crc = 0xFFFF;
 
+        while (length--){
+            x = crc >> 8 ^ *data_p++;
+            x ^= x>>4;
+            crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+        }
+        return crc;
     }
-    
+
     bool compareReadData(char* stage, uint8_t *bytesRead, uint8_t *byteCompare){
 
         int receivedSum = 0;
