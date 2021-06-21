@@ -53,9 +53,9 @@ public:
             byteArray[i+4] = sendingFrame.message[i]; 
         
         // Calculate CRC
-
-        //sendingFrame.crc16[0] = crc16Result & 0xFF
-        //sendingFrame.crc16[1] = crc16Result & 0xFF00
+        uint16_t crc16Result = crc16(sendingFrame.message, (uint8_t)sizeof(sendingFrame.message));
+        sendingFrame.crc16[0] = crc16Result & 0xFF;
+        sendingFrame.crc16[1] = crc16Result & 0xFF00;
         byteArray[messageSize-1+5] = sendingFrame.crc16[0]; 
         byteArray[messageSize-1+6] = sendingFrame.crc16[1]; 
 
@@ -102,7 +102,7 @@ public:
 
             case entete:
 
-                if (byteCounter < 3){
+                if (byteCounter < 4){
                     if (verbose) {compareReadData("Entete (type+flags)", &byteReceived, &sendingFrame.typeFlag);}
                     receivingFrame.typeFlag = byteReceived;
                 }
@@ -114,7 +114,7 @@ public:
                 
             case message:
 
-                receivingFrame.message[byteCounter-3] = byteReceived;
+                receivingFrame.message[byteCounter-5] = byteReceived;
 
                 if (sizeof(receivingFrame.message) >= receivingFrame.messageLength){
                     if (verbose) {compareReadData("Message", receivingFrame.message, sendingFrame.message);}
@@ -123,11 +123,23 @@ public:
          
             case controle:
 
-                // Gerer CRC16
-                // receivingFrame.crc16[0] = CRCRESULT & 0xFF
-                // receivingFrame.crc16[1] = CRCRESULT & 0xFF00
-                if (verbose) {compareReadData("Controle", &byteReceived, sendingFrame.crc16);}
-                currentReceivingState = end;
+                // CRC first half
+                if (byteCounter < sizeof(receivingFrame.message)+5){
+                    receivingFrame.crc16[0] = byteReceived;
+                }
+                else{
+                    // Gerer CRC16
+                    receivingFrame.crc16[1] = byteReceived;
+                    uint16_t fullCRC16 =  receivingFrame.crc16[0] << 16 | receivingFrame.crc16[1];
+
+                    uint16_t crc16Result = crc16(sendingFrame.message, (uint8_t)sizeof(sendingFrame.message));
+
+                    compareCRC16(crc16Result, fullCRC16);
+
+                    //if (verbose) {compareReadData("Controle", &byteReceived, sendingFrame.crc16);}
+                    currentReceivingState = end;
+                }
+                
 
             case end:
 
@@ -162,6 +174,10 @@ public:
         }
     };
 
+    bool compareCRC16(uint16_t crcReceived, uint16_t crcCalculated){
+
+    }
+    
     bool compareReadData(char* stage, uint8_t *bytesRead, uint8_t *byteCompare){
 
         int receivedSum = 0;
