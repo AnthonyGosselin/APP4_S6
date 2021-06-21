@@ -1,3 +1,4 @@
+#include "Particle.h"
 
 enum ManagerState { preambule, start, entete, message, controle, end };
 

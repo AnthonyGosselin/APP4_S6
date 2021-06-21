@@ -42,9 +42,6 @@ int outputClockPeriod = 500;
 
 system_tick_t lastThreadTime = 0;
 
-bool readFirstBit = false;
-bool lastBitRead = BIT0; // First bit must be 0
-
 void setup() {
 	Serial.begin(9600);
 
@@ -66,6 +63,12 @@ void setup() {
 void loop() {
 	// Do we really need to make a thread if we are not using main thread (do interrupts run on main thread??)
 }
+
+
+// ----------
+// HANDLE INPUT 
+// ----------
+
 
 bool getTransmissionSpeed(){
     if (speedInterrupts < 7){
@@ -201,7 +204,7 @@ void inputEvent() {
 
 
 // ----------
-// OUTPUT 
+// HANDLE OUTPUT 
 // ----------
 
 
