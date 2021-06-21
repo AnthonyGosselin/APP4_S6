@@ -76,10 +76,10 @@ public:
     };
 
     void receiveBit(bool bitReceived){
-        bitReceived++;
+        bitCounter++;
         byteConcat = (byteConcat << 1) | bitReceived;
 
-        if (!(bitReceived%8)){
+        if (!(bitCounter%8)){
             receiveData(byteConcat);
         }
     };
@@ -131,12 +131,10 @@ public:
                     // Gerer CRC16
                     receivingFrame.crc16[1] = byteReceived;
                     uint16_t fullCRC16 =  receivingFrame.crc16[0] << 16 | receivingFrame.crc16[1];
-
                     uint16_t crc16Result = crc16(sendingFrame.message, (uint8_t)sizeof(sendingFrame.message));
 
-                    compareCRC16(crc16Result, fullCRC16);
+                    bool crcOK = compareCRC16(crc16Result, fullCRC16);
 
-                    //if (verbose) {compareReadData("Controle", &byteReceived, sendingFrame.crc16);}
                     currentReceivingState = end;
                 }
                 
@@ -184,7 +182,17 @@ public:
             crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
         }
         return crc;
-    }
+    };
+
+    bool compareCRC16(uint16_t crc16Result, uint16_t fullCRC16){
+        bool isSameValue = crc16Result == fullCRC16;
+        if (isSameValue)
+            Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+        else
+            Serial.printlnf("CRC ERROR: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+
+        return isSameValue;
+    };
 
     bool compareReadData(char* stage, uint8_t *bytesRead, uint8_t *byteCompare){
 
