@@ -18,9 +18,6 @@ private:
     tramme sendingTramme;
     tramme receivingTramme;
 
-    ManagerState currentSendingState = preambule;
-    ManagerState currentReceivingState = preambule;
-
     bool isSending = false;
 
     // Transmission speed variables
@@ -31,6 +28,8 @@ private:
     int byteCounter = 0;
 
 public:
+    ManagerState currentSendingState = preambule;
+    ManagerState currentReceivingState = preambule;
     //MessageManager(bool sender): isSender(sender) {};
 
     void sendData() {
@@ -154,6 +153,18 @@ public:
         return true;
         }
     };
+
+    uint16_t crc16(const uint8_t* data_p, uint8_t length){
+        unsigned char x;
+        unsigned short crc = 0xFFFF;
+
+        while (length--){
+            x = crc >> 8 ^ *data_p++;
+            x ^= x>>4;
+            crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
+        }
+        return crc;
+    }
 
     bool compareReadData(uint8_t *bytesRead, uint8_t *byteCompare){
 

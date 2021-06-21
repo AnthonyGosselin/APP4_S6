@@ -26,11 +26,19 @@ enum StateDuration {
     veryLongPeriod
 };
 
+MessageManager msgManager;
+
+// Transmission speed variables
+int transmissionSpeed = 0;
+int speedInterrupts = 0;
+unsigned long firstSpeedInterruptTime = 0;
+
 bool skippedLastInputEvent = false;
 
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
-int clockPeriod = 500;
+int inputClockPeriod = 500;
+int outputClockPeriod = 500;
 
 system_tick_t lastThreadTime = 0;
 
@@ -48,7 +56,7 @@ void setup() {
     attachInterrupt(inputPin, inputEvent, CHANGE);
     CurrentInputState = initial;
 
-    MessageManager msgManager = MessageManager();
+    msgManager = MessageManager();
 
     waitFor(Serial.isConnected, 30000);
     Serial.println("Serial connected: starting");
@@ -59,29 +67,67 @@ void loop() {
 	// Do we really need to make a thread if we are not using main thread (do interrupts run on main thread??)
 }
 
+bool getTransmissionSpeed(){
+    if (speedInterrupts < 7){
+        if (speedInterrupts == 0)
+            firstSpeedInterruptTime = millis();
+        speedInterrupts++;
+        return false;
+    }
+    else{
+        // Get time since last interrupt
+        unsigned long currentTime = millis();
+        int elapsedTime = currentTime - firstSpeedInterruptTime;
+        
+        // Calculate speed by meaning
+        transmissionSpeed = elapsedTime/7/2;
+
+        speedInterrupts = 0; // Reset counter
+
+        Serial.printlnf("Clock speed: %d", transmissionSpeed);
+        inputClockPeriod = transmissionSpeed; // Set global clock speed variable
+
+        return true;
+    }
+};
+
 // Function used to change state and perform necessary actions right away (like outputing)
 void changeInputState(InputState newInputState) {
     switch (newInputState) {
         case output0:
             // Register that a 0 has been read
             Serial.println("READ: 0");
+            msgManager.receiveBit(0b0);
             break;
         case output1:
             // Register that a 1 has been read
             Serial.println("READ: 1");
+            msgManager.receiveBit(0b1);
             break;
     }
     CurrentInputState = newInputState; // Change to new state for next event
 }
 
 void inputEvent() {
+
+    // Compute transmission speed at the beginning of each frame
+    if (msgManager.currentReceivingState == preambule) {
+        bool speedComputeComplete = getTransmissionSpeed();
+        if (speedComputeComplete) {
+            // Done receiving preambule bits
+            msgManager.receiveData(0b01010101); // Notify msgManager that preambule has been received
+        }
+        return;
+    }
+    //----------
+
     int duration = millis() - lastChangeTime;
     lastChangeTime = millis();
 
     // If 80% higher than one clock period: must be two periods (AKA: long period)
-    int longPeriodMin = clockPeriod * 1.8;
-    int longPeriodMax = clockPeriod * 2.2;
-    int shortPeriodMin = clockPeriod * 0.8;
+    int longPeriodMin = inputClockPeriod * 1.8;
+    int longPeriodMax = inputClockPeriod * 2.2;
+    int shortPeriodMin = inputClockPeriod * 0.8;
 
     // Determine newStateDuration (time since last change event)
     StateDuration newStateDuration;
@@ -102,7 +148,6 @@ void inputEvent() {
     // Printing (debug)
     Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
     inputCurrentStateHigh = !inputCurrentStateHigh;
-
 
     // STATE MACHINE: Decode Manchester
     switch (CurrentInputState) {
@@ -162,22 +207,20 @@ void inputEvent() {
 
 void output(PinState level) {
     digitalWrite(outputPin, level);
-    os_thread_delay_until(&lastThreadTime, clockPeriod);
+    os_thread_delay_until(&lastThreadTime, outputClockPeriod);
 }
 
 void sendBitsManchester(bool bits[], int bitCount) {
     for (int i = 0; i < bitCount; i++) {
         if (bits[i] == BIT1) {
-            //Serial.println("Sending 1");
             // Send 1 in Manchester
-            //Serial.println("SEND: HIGH");
+            //Serial.println("SEND: 1");
             output(HIGH);
             output(LOW);
         }
         else {
-            //Serial.println("Sending 0");
             // Send 0 in Manchester
-            //Serial.println("SEND: LOW");
+            //Serial.println("SEND: 0");
             output(LOW);
             output(HIGH);
         }
@@ -194,13 +237,6 @@ void outputThread() {
         Serial.println("---------");
         os_thread_delay_until(&lastThreadTime, 2000);
         CurrentInputState = initial;
-        
-        // digitalWrite(outputPin, HIGH);
-        // // Serial.println("High");
-		// os_thread_delay_until(&lastThreadTime, 1000);
-        // digitalWrite(outputPin, LOW);
-        // // Serial.println("Low");
-        // os_thread_delay_until(&lastThreadTime, 1000);
 	}
 }
 
