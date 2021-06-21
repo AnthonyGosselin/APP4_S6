@@ -11,8 +11,6 @@ struct frame {
     uint8_t crc16[2];
 };
 
-bool verbose = true;
-
 class MessageManager {
 
 private:
@@ -20,6 +18,7 @@ private:
     frame receivingFrame;
 
     bool isSending = false;
+    bool isVerbose = true;
 
     // Transmission speed variables
     int transmissionSpeed = 0;
@@ -92,23 +91,23 @@ public:
         switch(currentReceivingState){
 
             case preambule:
-                if (verbose) {compareReadData("Preambule", &byteReceived, &sendingFrame.startEnd);}
+                if (isVerbose) {compareReadData("Preambule", &byteReceived, &sendingFrame.startEnd);}
                 currentReceivingState = start;
 
             case start:
                 
                 receivingFrame.startEnd = byteReceived;
-                if (verbose) {compareReadData("Start", &byteReceived, &sendingFrame.startEnd);}
+                if (isVerbose) {compareReadData("Start", &byteReceived, &sendingFrame.startEnd);}
                 currentReceivingState = entete;
 
             case entete:
 
                 if (byteCounter < 4){
-                    if (verbose) {compareReadData("Entete (type+flags)", &byteReceived, &sendingFrame.typeFlag);}
+                    if (isVerbose) {compareReadData("Entete (type+flags)", &byteReceived, &sendingFrame.typeFlag);}
                     receivingFrame.typeFlag = byteReceived;
                 }
                 else{
-                    if (verbose) {compareReadData("Entete (length):", &byteReceived, &sendingFrame.messageLength);}
+                    if (isVerbose) {compareReadData("Entete (length):", &byteReceived, &sendingFrame.messageLength);}
                     receivingFrame.messageLength = byteReceived;
                     currentReceivingState = message;
                 }
@@ -118,7 +117,7 @@ public:
                 receivingFrame.message[byteCounter-5] = byteReceived;
 
                 if (sizeof(receivingFrame.message) >= receivingFrame.messageLength){
-                    if (verbose) {compareReadData("Message", receivingFrame.message, sendingFrame.message);}
+                    if (isVerbose) {compareReadData("Message", receivingFrame.message, sendingFrame.message);}
                     currentReceivingState = controle;
                 }    
          
@@ -142,7 +141,7 @@ public:
 
             case end:
 
-                if (verbose) {compareReadData("End", &byteReceived, &sendingFrame.startEnd);}
+                if (isVerbose) {compareReadData("End", &byteReceived, &sendingFrame.startEnd);}
                 byteCounter = 0;
                 currentReceivingState = start;
 
