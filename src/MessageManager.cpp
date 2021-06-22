@@ -1,5 +1,15 @@
-#include "FrameManager.cpp"
+/******************************************************/
+//       THIS IS A GENERATED FILE - DO NOT EDIT       //
+/******************************************************/
 
+#include "Particle.h"
+#line 1 "c:/GitAPP/APP4_S6/src/MessageManager.ino"
+#include "FrameManager.ino"
+
+void sendMessage(uint8_t* messageToSend);
+void receiveMessage(uint8_t* messageReceived);
+bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare, uint8_t length);
+#line 3 "c:/GitAPP/APP4_S6/src/MessageManager.ino"
 class MessageManager {
 
 public:
@@ -12,7 +22,7 @@ private:
 
 public:
 
-    bool* sendMessage(uint8_t* messageToSend) {
+    void sendMessage(uint8_t* messageToSend) {
         lastMessageSent = messageToSend;
         frameManager.sendData(messageToSend);
     };
@@ -20,11 +30,11 @@ public:
     void receiveMessage(uint8_t* messageReceived) {
         // Have to find way to poll / get message at transmission end
         uint8_t* receivedMessage = frameManager.receivingFrame.message;
-        compareReadMessage(true, receivedMessage, lastMessageSent);
+        compareReadMessage(true, receivedMessage, lastMessageSent, frameManager.receivingFrame.messageLength);
     };
 
 
-    bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare){
+    bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare, uint8_t length){
 
         bool isSame;
         if (isString){
@@ -40,7 +50,7 @@ public:
         else{
             unsigned long receivedSum = 0;
             unsigned long compareSum = 0;
-            for (int i=0; i < sizeof(bytesRead); i++){
+            for (int i=0; i < length; i++){
                 receivedSum += bytesRead[i];
                 compareSum += byteCompare[i];
             }

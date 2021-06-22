@@ -1,5 +1,4 @@
-#include "MessageManager.cpp"
-//#include "Particle.h"
+#include "MessageManager.ino"
 
 SYSTEM_THREAD(ENABLED);
 
@@ -43,11 +42,13 @@ int outputClockPeriod = 500;
 system_tick_t lastThreadTime = 0;
 system_tick_t lastMessageTime = 0;
 
+int bitCounter = 0;
+
 void setup() {
 	Serial.begin(9600);
 
-    pinMode(outputPin, OUTPUT);
-    pinMode(inputPin, INPUT);
+    pinMode(outputPin, OUTPUT_OPEN_DRAIN);
+    pinMode(inputPin, INPUT_PULLUP);
 
     digitalWrite(outputPin, LOW);
 
@@ -114,6 +115,7 @@ void changeInputState(InputState newInputState) {
             msgManager.frameManager.receiveBit(0b1);
             break;
     }
+    // Serial.printlnf("Received bit number %d", bitCounter++);
     CurrentInputState = newInputState; // Change to new state for next event
 }
 
@@ -138,7 +140,7 @@ void inputEvent() {
     int longPeriodMax = inputClockPeriod * 2.2;
     int shortPeriodMin = inputClockPeriod * 0.8;
 
-    if (duration < shortPeriodMin) {
+    if(duration < shortPeriodMin) {
         //Serial.printlnf("Rejecting too short impulse of %d ms", duration);
         return;
     }
@@ -155,8 +157,9 @@ void inputEvent() {
         newStateDuration = shortPeriod;
     }
     
+    
     // Printing (debug)
-    Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
+    //Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
     inputCurrentStateHigh = !inputCurrentStateHigh;
 
     // STATE MACHINE: Decode Manchester
@@ -238,20 +241,14 @@ void sendBitsManchester(bool bits[], int bitCount) {
 }
 
 void outputThread() {
-    delay(3000);
+    //delay(5000);
     Serial.println("Starting output loop");
     while(true) {
-
-        // Call messages to send here, split by long delays?
-        // uint8_t message1[12] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd','!'};
-        // msgManager.sendMessage(message1);
-        // os_thread_delay_until(&lastMessageTime, 10000);
-
-        bool bitsToSend[] = {BIT0, BIT1, BIT0, BIT1, BIT0, BIT1, BIT1, BIT1};
+        
+        bool bitsToSend[] = {BIT0, BIT1, BIT1, BIT1, BIT0, BIT1, BIT0, BIT1};
         sendBitsManchester(bitsToSend, 8);
         Serial.println("---------");
         os_thread_delay_until(&lastThreadTime, 2000);
-
         CurrentInputState = initial;
 	}
 }

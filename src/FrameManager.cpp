@@ -1,13 +1,26 @@
+/******************************************************/
+//       THIS IS A GENERATED FILE - DO NOT EDIT       //
+/******************************************************/
+
+#line 1 "c:/GitAPP/APP4_S6/src/FrameManager.ino"
 #include "Particle.h"
 
+bool* sendData(uint8_t* messageToSend);
+void receiveBit(uint8_t bitReceived);
+void receiveData(uint8_t byteReceived);
+bool getTransmissionSpeed();
+uint16_t crc16(const uint8_t* data_p, uint8_t length);
+bool compareCRC16(uint16_t crc16Result, uint16_t fullCRC16);
+bool compareReadData(const char* stage, uint8_t* bytesRead, uint8_t* bytesCompare, int length);
+#line 3 "c:/GitAPP/APP4_S6/src/FrameManager.ino"
 enum FrameManagerState { preambule, start, entete, message, controle, end };
 
 struct frame {
     uint8_t preambule = 0b01010101;
     uint8_t startEnd = 0b01111110;
     uint8_t typeFlag = 0b00000000;
-    uint8_t messageLength = 0b00000000;
-    uint8_t* message;
+    uint8_t messageLength = 0b00000001;
+    uint8_t message[1] = {0b00000001};
     uint8_t crc16[2];
     bool crcCorrect = false;
 };
@@ -51,7 +64,7 @@ public:
         byteArray[3] = messageSize; 
 
         // Add message byte per byte
-        sendingFrame.message = messageToSend;
+        //sendingFrame.message = messageToSend;
         for(int i = 0; i < messageSize; i++)
             byteArray[i+4] = sendingFrame.message[i]; 
         
@@ -67,20 +80,26 @@ public:
 
 
        // Bytes to bits
-       for (int i=0; i<sizeof(byteArray); i++){
+       for (int i=0; i<messageSize+7; i++){
            uint8_t bitMask = 0b10000000;
            for(int j=0; j < 8; j++){
                outputBitArray[i*8+j] = byteArray[i] & bitMask;
-               bitMask >> 1;
+               bitMask >>= 1;
            }
        }
 
        return outputBitArray;
     };
 
-    void receiveBit(bool bitReceived){
+    void receiveBit(uint8_t bitReceived){
+
+        // Serial.printlnf("Received bit %d", (int)bitReceived);
+
         bitCounter++;
         byteConcat = (byteConcat << 1) | bitReceived;
+        // Serial.printlnf("Received concat byte %d", (int)byteConcat);
+
+        Serial.printlnf("Received bit number %d", bitCounter);
 
         if (!(bitCounter%8)){
             receiveData(byteConcat);
@@ -89,65 +108,85 @@ public:
 
     void receiveData(uint8_t byteReceived) {
 
+        Serial.printlnf("Received byte %d", (int)byteReceived);
         byteCounter++;
 
         switch(currentReceivingState){
 
             case preambule:
-                if (isVerbose) {compareReadData("Preambule", &byteReceived, &sendingFrame.preambule);}
-                currentReceivingState = start;
+                {
+                    //String stageName = "Preambule";
+                    const char stageName[] = "Preambule";
+                    if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.preambule, 1);}
+                    currentReceivingState = start;
+                    break;
+                }
 
             case start:
-                
-                receivingFrame.startEnd = byteReceived;
-                if (isVerbose) {compareReadData("Start", &byteReceived, &sendingFrame.startEnd);}
-                currentReceivingState = entete;
+                {
+                    receivingFrame.startEnd = byteReceived;
+                    const char stageName[] = "Start";
+                    if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
+                    currentReceivingState = entete;
+                    break;
+                }
 
             case entete:
-
-                if (byteCounter < 4){
-                    if (isVerbose) {compareReadData("Entete (type+flags)", &byteReceived, &sendingFrame.typeFlag);}
-                    receivingFrame.typeFlag = byteReceived;
-                }
-                else{
-                    if (isVerbose) {compareReadData("Entete (length):", &byteReceived, &sendingFrame.messageLength);}
-                    receivingFrame.messageLength = byteReceived;
-                    currentReceivingState = message;
+                {
+                    if (byteCounter < 4){
+                        const char stageName[] = "Entete (typeFlags)";
+                        if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.typeFlag, 1);}
+                        receivingFrame.typeFlag = byteReceived;
+                    }
+                    else{
+                        const char stageName[] = "Entete (length)";
+                        if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.messageLength, 1);}
+                        receivingFrame.messageLength = byteReceived;
+                        currentReceivingState = message;
+                    }
+                    break;
                 }
                 
             case message:
+                {
+                    receivingFrame.message[byteCounter-5] = byteReceived;
 
-                receivingFrame.message[byteCounter-5] = byteReceived;
-
-                if (sizeof(receivingFrame.message) >= receivingFrame.messageLength){
-                    if (isVerbose) {compareReadData("Message", receivingFrame.message, sendingFrame.message);}
-                    currentReceivingState = controle;
-                }    
+                    if (byteCounter < receivingFrame.messageLength + 4){
+                        const char stageName[] = "Message";
+                        if (isVerbose) {compareReadData(stageName, receivingFrame.message, sendingFrame.message, receivingFrame.messageLength);}
+                        currentReceivingState = controle;
+                    }
+                    break;  
+                }  
          
             case controle:
+                {
+                    // CRC first half
+                    if (byteCounter < receivingFrame.messageLength + 5){
+                        receivingFrame.crc16[0] = byteReceived;
+                    }
+                    else{
+                        // Gerer CRC16
+                        receivingFrame.crc16[1] = byteReceived;
+                        uint16_t fullCRC16 =  receivingFrame.crc16[0] << 16 | receivingFrame.crc16[1];
+                        uint16_t crc16Result = crc16(sendingFrame.message, receivingFrame.messageLength);
 
-                // CRC first half
-                if (byteCounter < sizeof(receivingFrame.message)+5){
-                    receivingFrame.crc16[0] = byteReceived;
-                }
-                else{
-                    // Gerer CRC16
-                    receivingFrame.crc16[1] = byteReceived;
-                    uint16_t fullCRC16 =  receivingFrame.crc16[0] << 16 | receivingFrame.crc16[1];
-                    uint16_t crc16Result = crc16(sendingFrame.message, (uint8_t)sizeof(sendingFrame.message));
+                        if(compareCRC16(crc16Result, fullCRC16))
+                            receivingFrame.crcCorrect = true;
 
-                    if(compareCRC16(crc16Result, fullCRC16))
-                        receivingFrame.crcCorrect = true;
-
-                    currentReceivingState = end;
+                        currentReceivingState = end;
+                    }
+                    break;
                 }
                 
 
             case end:
-
-                if (isVerbose) {compareReadData("End", &byteReceived, &sendingFrame.startEnd);}
-                byteCounter = 0;
-                currentReceivingState = start;
+                {
+                    const char stageName[] = "End";
+                    if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
+                    byteCounter = 0;
+                    currentReceivingState = start;
+                }
 
         }
 
@@ -170,7 +209,7 @@ public:
 
         speedInterrupts = 0;
 
-        Serial.printlnf("%d", transmissionSpeed);
+        // Serial.printlnf("%d", transmissionSpeed);
 
         return true;
         }
@@ -190,19 +229,19 @@ public:
 
     bool compareCRC16(uint16_t crc16Result, uint16_t fullCRC16){
         bool isSameValue = crc16Result == fullCRC16;
-        if (isSameValue)
-            Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
-        else
-            Serial.printlnf("CRC ERROR: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+        // if (isSameValue)
+        //     Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+        // else
+        //     Serial.printlnf("CRC ERROR: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
 
         return isSameValue;
     };
 
-    bool compareReadData(char* stage, uint8_t *bytesRead, uint8_t *bytesCompare){
+    bool compareReadData(const char* stage, uint8_t* bytesRead, uint8_t* bytesCompare, int length){
 
         int receivedSum = 0;
         int compareSum = 0;
-        for (int i=0; i < sizeof(bytesRead); i++){
+        for (int i=0; i < length; i++){
             receivedSum += bytesRead[i];
             compareSum += bytesCompare[i];
         }
