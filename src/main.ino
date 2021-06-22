@@ -1,4 +1,3 @@
-//#include "Particle.h"
 #include "MessageManager.cpp"
 
 SYSTEM_THREAD(ENABLED);
@@ -41,6 +40,7 @@ int inputClockPeriod = 500;
 int outputClockPeriod = 500;
 
 system_tick_t lastThreadTime = 0;
+system_tick_t lastMessageTime = 0;
 
 void setup() {
 	Serial.begin(9600);
@@ -62,6 +62,11 @@ void setup() {
 
 void loop() {
 	// Do we really need to make a thread if we are not using main thread (do interrupts run on main thread??)
+
+    // Call messages to send here, split by long delays?
+    // char* message1 = [H, e, l, l, o, , W, o, r, l, d, !];
+    // ex. msgManager.sendMessage(message1);
+    // delay(10000); OR os_thread_delay_until(&lastMessageTime, 10000)
 }
 
 
@@ -100,12 +105,12 @@ void changeInputState(InputState newInputState) {
         case output0:
             // Register that a 0 has been read
             Serial.println("READ: 0");
-            msgManager.receiveBit(0b0);
+            msgManager.frameManager.receiveBit(0b0);
             break;
         case output1:
             // Register that a 1 has been read
             Serial.println("READ: 1");
-            msgManager.receiveBit(0b1);
+            msgManager.frameManager.receiveBit(0b1);
             break;
     }
     CurrentInputState = newInputState; // Change to new state for next event
@@ -114,11 +119,11 @@ void changeInputState(InputState newInputState) {
 void inputEvent() {
 
     // Compute transmission speed at the beginning of each frame
-    if (msgManager.currentReceivingState == preambule) {
+    if (msgManager.frameManager.currentReceivingState == preambule) {
         bool speedComputeComplete = getTransmissionSpeed();
         if (speedComputeComplete) {
             // Done receiving preambule bits
-            msgManager.receiveData(0b01010101); // Notify msgManager that preambule has been received
+            msgManager.frameManager.receiveData(0b01010101); // Notify msgManager that preambule has been received
         }
         return;
     }

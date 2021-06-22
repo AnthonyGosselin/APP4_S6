@@ -1,215 +1,59 @@
-#include "Particle.h"
-
-enum ManagerState { preambule, start, entete, message, controle, end };
-
-struct frame {
-    uint8_t preambule = 0b01010101;
-    uint8_t startEnd = 0b01111110;
-    uint8_t typeFlag = 0b00000000;
-    uint8_t messageLength = 0b00000000;
-    uint8_t message[6] = {0b00000000, 0b11111111, 0b01010101, 0b10101010, 0b00001111, 0b11110000};
-    uint8_t crc16[2];
-};
+#include "FrameManager.cpp"
 
 class MessageManager {
 
-private:
-    frame sendingFrame;
-    frame receivingFrame;
+public:
+    FrameManager frameManager = FrameManager();
 
-    bool isSending = false;
+private:
+
+    uint8_t* lastMessageSent;
     bool isVerbose = true;
 
-    // Transmission speed variables
-    int transmissionSpeed = 0;
-    int speedInterrupts = 0;
-    unsigned long firstSpeedInterruptTime = 0;
-
-    int bitCounter = 0;
-    int byteCounter = 0;
-    uint8_t byteConcat = 0;
-
 public:
-    ManagerState currentSendingState = preambule;
-    ManagerState currentReceivingState = preambule;
-    //MessageManager(bool sender): isSender(sender) {};
 
-    bool* sendData() {
-
-        bool* outputBitArray;
-        uint8_t* byteArray;
-
-        // Set at first/doesnt change (preamb, start, type/flag)
-        byteArray[0] = sendingFrame.preambule; 
-        byteArray[1] = sendingFrame.startEnd; 
-        byteArray[2] = sendingFrame.typeFlag; 
-
-        // Calculate message length
-        uint8_t messageSize = sizeof(sendingFrame.message);
-        byteArray[3] = messageSize; 
-
-        // Add message byte per byte
-        for(int i = 0; i < messageSize; i++)
-            byteArray[i+4] = sendingFrame.message[i]; 
-        
-        // Calculate CRC
-        uint16_t crc16Result = crc16(sendingFrame.message, (uint8_t)sizeof(sendingFrame.message));
-        sendingFrame.crc16[0] = crc16Result & 0xFF;
-        sendingFrame.crc16[1] = crc16Result & 0xFF00;
-        byteArray[messageSize-1+5] = sendingFrame.crc16[0]; 
-        byteArray[messageSize-1+6] = sendingFrame.crc16[1]; 
-
-        // Send end
-        byteArray[messageSize-1+7] = sendingFrame.startEnd; 
-
-
-       // Bytes to bits
-       for (int i=0; i<sizeof(byteArray); i++){
-           uint8_t bitMask = 0b10000000;
-           for(int j=0; j < 8; j++){
-               outputBitArray[i*8+j] = byteArray[i] & bitMask;
-               bitMask >> 1;
-           }
-       }
-
-       return outputBitArray;
+    bool* sendMessage(uint8_t* messageToSend) {
+        lastMessageSent = messageToSend;
+        frameManager.sendData(messageToSend);
     };
 
-    void receiveBit(bool bitReceived){
-        bitCounter++;
-        byteConcat = (byteConcat << 1) | bitReceived;
-
-        if (!(bitCounter%8)){
-            receiveData(byteConcat);
-        }
+    void receiveMessage(uint8_t* messageReceived) {
+        // Have to find way to poll / get message at transmission end
+        uint8_t* receivedMessage = frameManager.receivingFrame.message;
+        compareReadMessage(true, receivedMessage, lastMessageSent);
     };
 
-    void receiveData(uint8_t byteReceived) {
 
-        byteCounter++;
+    bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare){
 
-        switch(currentReceivingState){
+        bool isSame;
+        if (isString){
+            char* msgRead = (char*)bytesRead;
+            char* msgCompare = (char*)byteCompare;
 
-            case preambule:
-                if (isVerbose) {compareReadData("Preambule", &byteReceived, &sendingFrame.startEnd);}
-                currentReceivingState = start;
-
-            case start:
-                
-                receivingFrame.startEnd = byteReceived;
-                if (isVerbose) {compareReadData("Start", &byteReceived, &sendingFrame.startEnd);}
-                currentReceivingState = entete;
-
-            case entete:
-
-                if (byteCounter < 4){
-                    if (isVerbose) {compareReadData("Entete (type+flags)", &byteReceived, &sendingFrame.typeFlag);}
-                    receivingFrame.typeFlag = byteReceived;
-                }
-                else{
-                    if (isVerbose) {compareReadData("Entete (length):", &byteReceived, &sendingFrame.messageLength);}
-                    receivingFrame.messageLength = byteReceived;
-                    currentReceivingState = message;
-                }
-                
-            case message:
-
-                receivingFrame.message[byteCounter-5] = byteReceived;
-
-                if (sizeof(receivingFrame.message) >= receivingFrame.messageLength){
-                    if (isVerbose) {compareReadData("Message", receivingFrame.message, sendingFrame.message);}
-                    currentReceivingState = controle;
-                }    
-         
-            case controle:
-
-                // CRC first half
-                if (byteCounter < sizeof(receivingFrame.message)+5){
-                    receivingFrame.crc16[0] = byteReceived;
-                }
-                else{
-                    // Gerer CRC16
-                    receivingFrame.crc16[1] = byteReceived;
-                    uint16_t fullCRC16 =  receivingFrame.crc16[0] << 16 | receivingFrame.crc16[1];
-                    uint16_t crc16Result = crc16(sendingFrame.message, (uint8_t)sizeof(sendingFrame.message));
-
-                    bool crcOK = compareCRC16(crc16Result, fullCRC16);
-
-                    currentReceivingState = end;
-                }
-                
-
-            case end:
-
-                if (isVerbose) {compareReadData("End", &byteReceived, &sendingFrame.startEnd);}
-                byteCounter = 0;
-                currentReceivingState = start;
-
-        }
-
-    };
-
-    bool getTransmissionSpeed(){
-        if (speedInterrupts < 7){
-            if (speedInterrupts == 0)
-                firstSpeedInterruptTime = millis();
-            speedInterrupts++;
-            return false;
+            isSame = !strcmp(msgRead, msgCompare);
+            if (isSame)
+                Serial.printlnf("SUCCES: Received message: \t %s.", msgRead);
+            else
+                Serial.printlnf("ERROR: Received message: \t Expected %s, Received %s.", msgCompare, msgRead);
         }
         else{
-        // Get time since last interrupt
-        unsigned long currentTime = millis();
-        int elapsedTime = currentTime - firstSpeedInterruptTime;
+            unsigned long receivedSum = 0;
+            unsigned long compareSum = 0;
+            for (int i=0; i < sizeof(bytesRead); i++){
+                receivedSum += bytesRead[i];
+                compareSum += byteCompare[i];
+            }
+
+            isSame = receivedSum == compareSum;
+            if (isSame)
+                Serial.printlnf("SUCCES: Received message: \t Expected %d, Received %d.", compareSum, receivedSum);
+            else
+                Serial.printlnf("ERROR: Received message: \t Expected %d, Received %d.", compareSum, receivedSum);
+        }
         
-        // Calculate speed by meaning
-        transmissionSpeed = elapsedTime/7/2;
+        return isSame;
 
-        speedInterrupts = 0;
-
-        Serial.printlnf("%d", transmissionSpeed);
-
-        return true;
-        }
-    };
-
-    uint16_t crc16(const uint8_t* data_p, uint8_t length){
-        unsigned char x;
-        unsigned short crc = 0xFFFF;
-
-        while (length--){
-            x = crc >> 8 ^ *data_p++;
-            x ^= x>>4;
-            crc = (crc << 8) ^ ((unsigned short)(x << 12)) ^ ((unsigned short)(x <<5)) ^ ((unsigned short)x);
-        }
-        return crc;
-    };
-
-    bool compareCRC16(uint16_t crc16Result, uint16_t fullCRC16){
-        bool isSameValue = crc16Result == fullCRC16;
-        if (isSameValue)
-            Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
-        else
-            Serial.printlnf("CRC ERROR: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
-
-        return isSameValue;
-    };
-
-    bool compareReadData(char* stage, uint8_t *bytesRead, uint8_t *byteCompare){
-
-        int receivedSum = 0;
-        int compareSum = 0;
-        for (int i=0; i < sizeof(bytesRead); i++){
-            receivedSum += bytesRead[i];
-            compareSum += byteCompare[i];
-        }
-
-        bool isSameValue = receivedSum == compareSum;
-        if (isSameValue)
-            Serial.printlnf("SUCCES: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
-        else
-            Serial.printlnf("ERROR: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
-
-        return isSameValue;
     };
 
 };
