@@ -28,8 +28,6 @@ private:
     uint8_t byteConcat = 0;
 
 public:
-    MessageManager msgManager = MessageManager();
-
     frame sendingFrame;
     frame receivingFrame;
 
@@ -96,7 +94,7 @@ public:
         switch(currentReceivingState){
 
             case preambule:
-                if (isVerbose) {compareReadData("Preambule", &byteReceived, &sendingFrame.startEnd);}
+                if (isVerbose) {compareReadData("Preambule", &byteReceived, &sendingFrame.preambule);}
                 currentReceivingState = start;
 
             case start:

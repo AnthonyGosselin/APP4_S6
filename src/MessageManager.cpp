@@ -32,10 +32,10 @@ public:
             char* msgCompare = (char*)byteCompare;
 
             isSame = !strcmp(msgRead, msgCompare);
-            if (isSame)
-                Serial.printlnf("SUCCES: Received message: \t %s.", msgRead);
-            else
-                Serial.printlnf("ERROR: Received message: \t Expected %s, Received %s.", msgCompare, msgRead);
+            // if (isSame)
+            //     Serial.printlnf("SUCCES: Received message: \t %s.", msgRead);
+            // else
+            //     Serial.printlnf("ERROR: Received message: \t Expected %s, Received %s.", msgCompare, msgRead);
         }
         else{
             unsigned long receivedSum = 0;
@@ -46,10 +46,10 @@ public:
             }
 
             isSame = receivedSum == compareSum;
-            if (isSame)
-                Serial.printlnf("SUCCES: Received message: \t Expected %d, Received %d.", compareSum, receivedSum);
-            else
-                Serial.printlnf("ERROR: Received message: \t Expected %d, Received %d.", compareSum, receivedSum);
+            // if (isSame)
+            //     Serial.printlnf("SUCCES: Received message: \t Expected %d, Received %d.", compareSum, receivedSum);
+            // else
+            //     Serial.printlnf("ERROR: Received message: \t Expected %d, Received %d.", compareSum, receivedSum);
         }
         
         return isSame;

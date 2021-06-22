@@ -1,4 +1,5 @@
 #include "MessageManager.cpp"
+//#include "Particle.h"
 
 SYSTEM_THREAD(ENABLED);
 
@@ -119,14 +120,14 @@ void changeInputState(InputState newInputState) {
 void inputEvent() {
 
     // Compute transmission speed at the beginning of each frame
-    if (msgManager.frameManager.currentReceivingState == preambule) {
-        bool speedComputeComplete = getTransmissionSpeed();
-        if (speedComputeComplete) {
-            // Done receiving preambule bits
-            msgManager.frameManager.receiveData(0b01010101); // Notify msgManager that preambule has been received
-        }
-        return;
-    }
+    // if (msgManager.frameManager.currentReceivingState == preambule) {
+    //     bool speedComputeComplete = getTransmissionSpeed();
+    //     if (speedComputeComplete) {
+    //         // Done receiving preambule bits
+    //         msgManager.frameManager.receiveData(0b01010101); // Notify msgManager that preambule has been received
+    //     }
+    //     return;
+    // }
     //----------
 
     int duration = millis() - lastChangeTime;
@@ -136,6 +137,11 @@ void inputEvent() {
     int longPeriodMin = inputClockPeriod * 1.8;
     int longPeriodMax = inputClockPeriod * 2.2;
     int shortPeriodMin = inputClockPeriod * 0.8;
+
+    if (duration < shortPeriodMin) {
+        //Serial.printlnf("Rejecting too short impulse of %d ms", duration);
+        return;
+    }
 
     // Determine newStateDuration (time since last change event)
     StateDuration newStateDuration;
@@ -147,10 +153,6 @@ void inputEvent() {
     }
     else if (duration >= shortPeriod && duration < longPeriodMin) {
         newStateDuration = shortPeriod;
-    }
-    else {
-        Serial.printlnf("Rejecting too short impulse of %d ms", duration);
-        return;
     }
     
     // Printing (debug)
@@ -240,10 +242,16 @@ void outputThread() {
     Serial.println("Starting output loop");
     while(true) {
 
-        bool bitsToSend[] = {BIT0, BIT1, BIT1, BIT1, BIT0, BIT1, BIT0, BIT1};
+        // Call messages to send here, split by long delays?
+        // uint8_t message1[12] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd','!'};
+        // msgManager.sendMessage(message1);
+        // os_thread_delay_until(&lastMessageTime, 10000);
+
+        bool bitsToSend[] = {BIT0, BIT1, BIT0, BIT1, BIT0, BIT1, BIT1, BIT1};
         sendBitsManchester(bitsToSend, 8);
         Serial.println("---------");
         os_thread_delay_until(&lastThreadTime, 2000);
+
         CurrentInputState = initial;
 	}
 }
