@@ -106,12 +106,12 @@ void changeInputState(InputState newInputState) {
         case output0:
             // Register that a 0 has been read
             Serial.println("READ: 0");
-            msgManager.frameManager.receiveBit(0b0);
+            //msgManager.frameManager.receiveBit(0b0);
             break;
         case output1:
             // Register that a 1 has been read
             Serial.println("READ: 1");
-            msgManager.frameManager.receiveBit(0b1);
+            //msgManager.frameManager.receiveBit(0b1);
             break;
     }
     CurrentInputState = newInputState; // Change to new state for next event
@@ -147,6 +147,9 @@ void inputEvent() {
     StateDuration newStateDuration;
     if (duration > longPeriodMax) {
         newStateDuration = veryLongPeriod;
+
+        Serial.println("Setting CurrentInputState to 'initial' because very long period detected");
+        CurrentInputState = initial;
     }
     else if (duration >= longPeriodMin && duration < longPeriodMax) {
         newStateDuration = longPeriod;
@@ -238,7 +241,6 @@ void sendBitsManchester(bool bits[], int bitCount) {
 }
 
 void outputThread() {
-    delay(3000);
     Serial.println("Starting output loop");
     while(true) {
 
@@ -251,8 +253,6 @@ void outputThread() {
         sendBitsManchester(bitsToSend, 8);
         Serial.println("---------");
         os_thread_delay_until(&lastThreadTime, 2000);
-
-        CurrentInputState = initial;
 	}
 }
 
