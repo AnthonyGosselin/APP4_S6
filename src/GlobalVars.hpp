@@ -2,3 +2,4 @@
 #include "Particle.h"
 
 extern bool isVerbose;
+extern bool BitMEFVerbose;

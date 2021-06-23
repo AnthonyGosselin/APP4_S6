@@ -1,7 +1,16 @@
+/******************************************************/
+//       THIS IS A GENERATED FILE - DO NOT EDIT       //
+/******************************************************/
+
+#include "Particle.h"
+#line 1 "c:/GitAPP/APP4_S6/src/main.ino"
 #include "MessageManager.hpp"
 #include "BitManager.hpp"
 #include "GlobalVars.hpp"
 
+void setup();
+void loop();
+#line 5 "c:/GitAPP/APP4_S6/src/main.ino"
 SYSTEM_THREAD(ENABLED);
 
 bool isVerbose = true;

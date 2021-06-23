@@ -1,2 +1,20 @@
 
 *.bin
+
+*.crc_block
+
+*.d
+
+*.o
+
+target/2.1.0/argon/APP4_S6.map
+
+target/2.1.0/argon/APP4_S6.lst
+
+target/2.1.0/argon/APP4_S6.hex
+
+target/2.1.0/argon/APP4_S6.elf
+
+target/2.1.0/argon/APP4_S6.dfu
+
+target/2.1.0/argon/APP4_S6.bin.no_crc

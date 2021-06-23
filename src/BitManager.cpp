@@ -4,7 +4,9 @@
 
 SYSTEM_THREAD(ENABLED);
 
-int outputPin = D6;
+bool BitMEFVerbose = false;
+
+int outputPin = D6; 
 int inputPin = D7;
 
 bool BIT1 = true;
@@ -22,8 +24,8 @@ bool skippedLastInputEvent = false;
 
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
-int inputClockPeriod = 500;
-int outputClockPeriod = 500;
+int inputClockPeriod = 1;
+int outputClockPeriod = 50;
 
 system_tick_t lastThreadTime = 0;
 system_tick_t lastMessageTime = 0;
@@ -35,7 +37,7 @@ void BitManagerSetup() {
 
     digitalWrite(outputPin, LOW);
 
-    attachInterrupt(inputPin, inputEvent, CHANGE);
+    attachInterrupt(inputPin, inputEvent, CHANGE, 1);
     CurrentInputState = initial;
 
     Thread thread("outputThread", outputThread);
@@ -60,7 +62,7 @@ bool getTransmissionSpeed(){
         int elapsedTime = currentTime - firstSpeedInterruptTime;
         
         // Calculate speed by meaning
-        transmissionSpeed = elapsedTime/7; // ?? /2 ???
+        transmissionSpeed = elapsedTime/7/2; // ?? /2 ???
 
         speedInterrupts = 0; // Reset counter
 
@@ -77,12 +79,12 @@ void changeInputState(InputState newInputState) {
         case output0:
             // Register that a 0 has been read
             Serial.println("READ: 0");
-            receiveBit(0b0);
+            receiveBit(0b00000000);
             break;
         case output1:
             // Register that a 1 has been read
             Serial.println("READ: 1");
-            receiveBit(0b1);
+            receiveBit(0b00000001);
             break;
     }
     CurrentInputState = newInputState; // Change to new state for next event
@@ -99,7 +101,7 @@ void inputEvent() {
     int shortPeriodMin = inputClockPeriod * 0.8;
 
     if(duration < shortPeriodMin) {
-        //Serial.printlnf("Rejecting too short impulse of %d ms", duration);
+        Serial.printlnf("Rejecting too short impulse of %d ms, smaller than min %d ms", duration, shortPeriodMin);
         return;
     }
 
@@ -108,7 +110,7 @@ void inputEvent() {
         bool speedComputeComplete = getTransmissionSpeed();
         if (speedComputeComplete) {
             // Done receiving preambule bits
-            receiveData(0b01010101); // Notify msgManager that preambule has been received
+            receiveData((uint8_t)0b01010101); // Notify msgManager that preambule has been received
         }
         return;
     }
@@ -130,13 +132,13 @@ void inputEvent() {
     
     
     // Printing (debug)
-    Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
+    if(BitMEFVerbose){Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);}
     inputCurrentStateHigh = !inputCurrentStateHigh;
 
     // STATE MACHINE: Decode Manchester
     switch (CurrentInputState) {
         case initial:
-            if (newStateDuration == shortPeriod || newStateDuration == veryLongPeriod) {
+            if (newStateDuration == shortPeriod || newStateDuration == veryLongPeriod || newStateDuration == longPeriod) {
                 changeInputState(output0);
             } 
             else {
@@ -208,6 +210,8 @@ void sendBitsManchester(bool bits[], int bitCount) {
             output(LOW);
             output(HIGH);
         }
+        if ((i+1)%8 == 0)
+            Serial.println("---------");
     }
 }
 

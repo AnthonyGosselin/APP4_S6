@@ -8,7 +8,7 @@ struct frame {
     uint8_t startEnd = 0b01111110;
     uint8_t typeFlag = 0b00000000;
     uint8_t messageLength = 0b00000001;
-    uint8_t* message;
+    uint8_t* message = new uint8_t[80];
     uint8_t crc16[2];
     bool crcCorrect = false;
 };
@@ -26,7 +26,7 @@ extern FrameManagerState currentSendingState;
 extern FrameManagerState currentReceivingState;
 
 extern bool readyToSendFrame;
-extern bool* bitArray;
+extern bool *bitArray;
 extern uint8_t bitArraySize;
 
 void sendDataFrame(uint8_t*, uint8_t);
