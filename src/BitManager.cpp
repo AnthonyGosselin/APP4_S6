@@ -60,7 +60,7 @@ bool getTransmissionSpeed(){
         int elapsedTime = currentTime - firstSpeedInterruptTime;
         
         // Calculate speed by meaning
-        transmissionSpeed = elapsedTime/7/2;
+        transmissionSpeed = elapsedTime/7; // ?? /2 ???
 
         speedInterrupts = 0; // Reset counter
 
@@ -130,7 +130,7 @@ void inputEvent() {
     
     
     // Printing (debug)
-    //Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
+    Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);
     inputCurrentStateHigh = !inputCurrentStateHigh;
 
     // STATE MACHINE: Decode Manchester
@@ -216,11 +216,16 @@ void outputThread() {
     Serial.println("Starting output loop");
     while(true) {
 
+
         if(readyToSendFrame){
+            Serial.println("Ready to send frame!");
             sendBitsManchester(bitArray, bitArraySize);
             readyToSendFrame = false;
             Serial.println("---------");
             // CurrentInputState = initial;
+        }
+        else {
+            Serial.println("Not ready to send frame...");
         }
         
         os_thread_delay_until(&lastThreadTime, 2000);
