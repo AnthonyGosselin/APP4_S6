@@ -1,14 +1,19 @@
-#pragma once
-#include "MessageManager.ino"
+// #include "MessageManager.hpp"
+// #include "BitManager.hpp"
+// #include "GlobalVars.hpp"
 
-SYSTEM_THREAD(ENABLED);
+//SYSTEM_THREAD(ENABLED);
 
 bool isVerbose = true;
 
 void setup() {
 	Serial.begin(9600);
 
-    BitManagerSetup();
+    Serial.println("STARTED PROGRAM");
+
+    //BitManagerSetup();
+
+    Serial.println("STARTED PROGRAM");
 
     waitFor(Serial.isConnected, 30000);
     Serial.println("Serial connected: starting");
@@ -17,15 +22,15 @@ void setup() {
 void loop() {
 
     delay(5000);
-    uint8_t message1[4] = {0b01010101, 0b10101010, 0b00001111, 0b11110000};
-    uint8_t messageSize = 4;
-    sendMessage(message1, messageSize);
 
+    // uint8_t message1[4] = {0b01010101, 0b10101010, 0b00001111, 0b11110000};
+    // uint8_t message1Size = 4;
+    // sendMessage(message1, message1Size);
 
-	// Do we really need to make a thread if we are not using main thread (do interrupts run on main thread??)
+    char* message2 = "Hello World!";
+    uint8_t message2Size = 13;
+    //sendMessage((uint8_t*)message2, message2Size);
 
-    // Call messages to send here, split by long delays?
-    // char* message1 = [H, e, l, l, o, , W, o, r, l, d, !];
-    // ex. msgManager.sendMessage(message1);
-    // delay(10000); OR os_thread_delay_until(&lastMessageTime, 10000)
+    delay(15000);
+
 }
