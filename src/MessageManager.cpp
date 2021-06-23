@@ -4,15 +4,20 @@
 
 uint8_t* lastMessageSent;
 
-void sendMessage(uint8_t* messageToSend, uint8_t messageSize) {
-    lastMessageSent = messageToSend;
-    sendDataFrame(messageToSend, messageSize);
+void sendMessage(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
+    if (!isACK){
+        lastMessageSent = messageToSend;
+    }
+    sendDataFrame(messageToSend, messageSize, isACK);
+    
 };
 
 void receiveMessage(uint8_t* messageReceived) {
-    compareReadMessage(true, messageReceived, lastMessageSent, receivingFrame.messageLength);
+    //compareReadMessage(true, messageReceived, lastMessageSent, receivingFrame.messageLength);
+    WITH_LOCK(Serial){
+        Serial.printlnf("Received message: \t Expected \"%s\", Received \"%s\".", lastMessageSent, messageReceived);
+    }
 };
-
 
 bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare, uint8_t length){
 

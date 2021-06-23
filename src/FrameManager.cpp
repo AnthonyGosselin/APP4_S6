@@ -17,31 +17,41 @@ FrameManagerState currentSendingState = preambule;
 FrameManagerState currentReceivingState = preambule;
 
 bool readyToSendFrame = false;
-bool *bitArray = nullptr;
+bool *bitArray = new bool[1];
 uint8_t bitArraySize;
 
-void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize) {
+bool crcCorrect = false;
+
+void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
 
     uint8_t *byteArray = new uint8_t[messageSize+7];
-    if(!bitArray)
-        delete[] bitArray;
+    delete[] bitArray;
     bitArray = new bool[(messageSize+7)*8];
     bitArraySize = 0;
 
-    // Set at first/doesnt change (preamb, start, type/flag)
+    // Set at first/doesnt change (preamb, start)
     byteArray[0] = sendingFrame.preambule; 
-    byteArray[1] = sendingFrame.startEnd; 
-    byteArray[2] = sendingFrame.typeFlag; 
+    byteArray[1] = sendingFrame.startEnd;
 
+    // Add flag if is ACK to previous message
+    if(isACK){
+        byteArray[2] = 0b00000001; 
+    }
+    else{
+        byteArray[2] = 0b00000000;
+    }
+    
     // Get message length
     sendingFrame.messageLength = messageSize;
     byteArray[3] = sendingFrame.messageLength;
+    //Serial.printlnf("Message length: %d, %d, %d", messageSize, sendingFrame.messageLength, byteArray[3]);
 
     // Add message byte per byte
-    sendingFrame.message = messageToSend;
-    for(int i = 0; i < messageSize; i++)
+    for(int i = 0; i < messageSize; i++){
+        sendingFrame.message[i] = messageToSend[i];
         byteArray[i+4] = sendingFrame.message[i]; 
-    
+    }
+        
     // Calculate CRC
     uint16_t crc16Result = crc16(sendingFrame.message, messageSize);
     sendingFrame.crc16[0] = (crc16Result & 0xFF00) >> 8;
@@ -51,7 +61,6 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize) {
 
     // Send end
     byteArray[messageSize-1+7] = sendingFrame.startEnd; 
-
 
     // Bytes to bits
     for (int i=0; i<messageSize+7; i++){
@@ -65,7 +74,6 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize) {
 
     delete[] byteArray;
     readyToSendFrame = true;
-    
 };
 
 void receiveBit(uint8_t bitReceived){
@@ -122,17 +130,9 @@ void receiveData(uint8_t byteReceived) {
                     receivingFrame.messageLength = byteReceived;
                     currentReceivingState = message;
 
-                    // // Setup message pointer
-                    // if (receivingFrame.message){
-                    //     Serial.println("Should delete pointer");
-                    //     delete[] receivingFrame.message;
-                    // }
-                    // Serial.println("Created new pointer");
-                    // uint8_t messagePointer[byteReceived] = {0};
-                    // receivingFrame.message = messagePointer;
-
                     // delete[] receivingFrame.message;
                     // receivingFrame.message = new uint8_t[receivingFrame.messageLength];
+
                 }
                 break;
             }
@@ -140,14 +140,6 @@ void receiveData(uint8_t byteReceived) {
         case message:
             {
                 const char stageName[] = "Message";
-                //Serial.printlnf("Stage: %s", stageName);
-
-                if(byteCounter < 6){
-                    //delete[] receivingFrame.message;
-                    //uint8_t* messagePointer = new uint8_t[1]{0};
-                    //receivingFrame.message = messagePointer;
-                }
-
                 receivingFrame.message[byteCounter-5] = byteReceived;
 
                 if (byteCounter < receivingFrame.messageLength + 4){
@@ -178,7 +170,7 @@ void receiveData(uint8_t byteReceived) {
                     uint16_t crc16Result = crc16(receivingFrame.message, receivingFrame.messageLength);
 
                     if(compareCRC16(crc16Result, fullCRC16))
-                        receivingFrame.crcCorrect = true;
+                        crcCorrect = true;
 
                     currentReceivingState = end;
                 }
@@ -194,17 +186,16 @@ void receiveData(uint8_t byteReceived) {
                 byteCounter = 0;
                 currentReceivingState = preambule;
 
-                if(receivingFrame.crcCorrect)
-                    receiveMessage(receivingFrame.message);
-                else{
-                    char* errorMsg = "CRC Error: message flushed.";
-                    receiveMessage((uint8_t*)errorMsg);
-                }
+                //if(receivingFrame.crcCorrect)
+                receiveMessage(receivingFrame.message);
+                // else{
+                //     char* errorMsg = "CRC Error: message flushed.";
+                //     receiveMessage((uint8_t*)errorMsg);
+                // }
 
                 break;
             }
-            
-        //delete[] receivingFrame.message;
+
     }
 
 };

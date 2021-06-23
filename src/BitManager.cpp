@@ -4,6 +4,12 @@
 
 SYSTEM_THREAD(ENABLED);
 
+enum StateDuration {
+    shortPeriod, 
+    longPeriod, 
+    veryLongPeriod
+};
+
 bool BitMEFVerbose = false;
 
 int outputPin = D6; 
@@ -95,20 +101,20 @@ void changeInputState(InputState newInputState) {
     switch (newInputState) {
         case output0:
             // Register that a 0 has been read
-            if(isVerbose){
-                WITH_LOCK(Serial){
-                    Serial.println("READ: 0");
-                }
-            }
+            // if(isVerbose){
+            //     WITH_LOCK(Serial){
+            //         Serial.println("READ: 0");
+            //     }
+            // }
             receiveBit(0b00000000);
             break;
         case output1:
             // Register that a 1 has been read
-            if(isVerbose){
-                WITH_LOCK(Serial){
-                    Serial.println("READ: 1");
-                }
-            }
+            // if(isVerbose){
+            //     WITH_LOCK(Serial){
+            //         Serial.println("READ: 1");
+            //     }
+            // }
             receiveBit(0b00000001);
             break;
     }
@@ -116,6 +122,10 @@ void changeInputState(InputState newInputState) {
 }
 
 void inputEvent() {
+
+    if(!readyToSendFrame){
+        return;
+    }
 
     int duration = millis() - lastChangeTime;
     lastChangeTime = millis();
@@ -236,13 +246,13 @@ void sendBitsManchester(bool bits[], int bitCount) {
             output(LOW);
             output(HIGH);
         }
-        if ((i+1)%8 == 0){
-            if(isVerbose){
-                WITH_LOCK(Serial){
-                    Serial.println("---------");
-                }
-            }
-        }
+        // if ((i+1)%8 == 0){
+        //     if(isVerbose){
+        //         WITH_LOCK(Serial){
+        //             Serial.println("---------");
+        //         }
+        //     }
+        // }
     }
 
     digitalWrite(outputPin, LOW); // Bring back to low at the end of the message for next message
@@ -250,7 +260,7 @@ void sendBitsManchester(bool bits[], int bitCount) {
 
 void outputThread() {
     //delay(5000);
-    Serial.println("Starting output loop");
+    //Serial.println("Starting output loop");
     while(true) {
 
 
@@ -258,6 +268,7 @@ void outputThread() {
             Serial.println("Ready to send frame!");
             sendBitsManchester(bitArray, bitArraySize);
             readyToSendFrame = false;
+            digitalWrite(outputPin, LOW);
         }
         else {
             Serial.println("Not ready to send frame...");
