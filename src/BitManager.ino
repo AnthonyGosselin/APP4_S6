@@ -137,6 +137,9 @@ void inputEvent() {
     StateDuration newStateDuration;
     if (duration > longPeriodMax) {
         newStateDuration = veryLongPeriod;
+
+        CurrentInputState = initial;
+        Serial.println("Very long period detected: setting back to 'initial' input state");
     }
     else if (duration >= longPeriodMin && duration < longPeriodMax) {
         newStateDuration = longPeriod;
