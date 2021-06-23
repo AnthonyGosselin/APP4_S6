@@ -17,13 +17,14 @@ FrameManagerState currentSendingState = preambule;
 FrameManagerState currentReceivingState = preambule;
 
 bool readyToSendFrame = false;
-bool *bitArray = new bool[1];
+bool *bitArray = nullptr;
 uint8_t bitArraySize;
 
 void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize) {
 
     uint8_t *byteArray = new uint8_t[messageSize+7];
-    delete[] bitArray;
+    if(!bitArray)
+        delete[] bitArray;
     bitArray = new bool[(messageSize+7)*8];
     bitArraySize = 0;
 
@@ -43,7 +44,7 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize) {
     
     // Calculate CRC
     uint16_t crc16Result = crc16(sendingFrame.message, messageSize);
-    sendingFrame.crc16[0] = crc16Result & 0xFF00;
+    sendingFrame.crc16[0] = (crc16Result & 0xFF00) >> 8;
     sendingFrame.crc16[1] = crc16Result & 0xFF;
     byteArray[messageSize-1+5] = sendingFrame.crc16[0]; 
     byteArray[messageSize-1+6] = sendingFrame.crc16[1]; 
@@ -62,6 +63,7 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize) {
         }
     }
 
+    delete[] byteArray;
     readyToSendFrame = true;
     
 };
@@ -81,7 +83,7 @@ void receiveBit(uint8_t bitReceived){
 
 void receiveData(uint8_t byteReceived) {
 
-    Serial.printlnf("Received byte %d", (int)byteReceived);
+    //Serial.printlnf("Received byte %d", (int)byteReceived);
     byteCounter++;
 
     switch(currentReceivingState){
@@ -89,7 +91,7 @@ void receiveData(uint8_t byteReceived) {
         case preambule:
             {
                 const char stageName[] = "Preambule";
-                Serial.printlnf("Stage: %s", stageName);
+                //Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.preambule, 1);}
                 currentReceivingState = start;
                 break;
@@ -99,7 +101,7 @@ void receiveData(uint8_t byteReceived) {
             {
                 receivingFrame.startEnd = byteReceived;
                 const char stageName[] = "Start";
-                Serial.printlnf("Stage: %s", stageName);
+                //Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
                 currentReceivingState = entete;
                 break;
@@ -109,13 +111,13 @@ void receiveData(uint8_t byteReceived) {
             {
                 if (byteCounter < 4){
                     const char stageName[] = "Entete (typeFlags)";
-                    Serial.printlnf("Stage: %s", stageName);
+                    //Serial.printlnf("Stage: %s", stageName);
                     if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.typeFlag, 1);}
                     receivingFrame.typeFlag = byteReceived;
                 }
                 else{
                     const char stageName[] = "Entete (length)";
-                    Serial.printlnf("Stage: %s", stageName);
+                    //Serial.printlnf("Stage: %s", stageName);
                     if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.messageLength, 1);}
                     receivingFrame.messageLength = byteReceived;
                     currentReceivingState = message;
@@ -129,8 +131,8 @@ void receiveData(uint8_t byteReceived) {
                     // uint8_t messagePointer[byteReceived] = {0};
                     // receivingFrame.message = messagePointer;
 
-                    delete[] receivingFrame.message;
-                    receivingFrame.message = new uint8_t[receivingFrame.messageLength];
+                    // delete[] receivingFrame.message;
+                    // receivingFrame.message = new uint8_t[receivingFrame.messageLength];
                 }
                 break;
             }
@@ -138,13 +140,13 @@ void receiveData(uint8_t byteReceived) {
         case message:
             {
                 const char stageName[] = "Message";
-                Serial.printlnf("Stage: %s", stageName);
+                //Serial.printlnf("Stage: %s", stageName);
 
-                // if(byteCounter < 6){
-                //     delete[] receivingFrame.message;
-                //     receivingFrame.message = new uint8_t[receivingFrame.messageLength];
-                //     //receivingFrame.message = messagePointer;
-                // }
+                if(byteCounter < 6){
+                    //delete[] receivingFrame.message;
+                    //uint8_t* messagePointer = new uint8_t[1]{0};
+                    //receivingFrame.message = messagePointer;
+                }
 
                 receivingFrame.message[byteCounter-5] = byteReceived;
 
@@ -161,15 +163,19 @@ void receiveData(uint8_t byteReceived) {
         
         case controle:
             {
+                const char stageName[] = "CRC";
+
                 // CRC first half
                 if (byteCounter < receivingFrame.messageLength + 6){
                     receivingFrame.crc16[0] = byteReceived;
+                    if (isVerbose) {compareReadData(stageName, &receivingFrame.crc16[0], &sendingFrame.crc16[0], 1);}
                 }
                 else{
                     // Gerer CRC16
                     receivingFrame.crc16[1] = byteReceived;
+                    if (isVerbose) {compareReadData(stageName, &receivingFrame.crc16[1], &sendingFrame.crc16[1], 1);}
                     uint16_t fullCRC16 =  receivingFrame.crc16[0] << 8 | receivingFrame.crc16[1];
-                    uint16_t crc16Result = crc16(sendingFrame.message, receivingFrame.messageLength);
+                    uint16_t crc16Result = crc16(receivingFrame.message, receivingFrame.messageLength);
 
                     if(compareCRC16(crc16Result, fullCRC16))
                         receivingFrame.crcCorrect = true;
@@ -183,20 +189,21 @@ void receiveData(uint8_t byteReceived) {
         case end:
             {
                 const char stageName[] = "End";
-                Serial.printlnf("Stage: %s", stageName);
+                //Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
                 byteCounter = 0;
                 currentReceivingState = start;
+
+                if(receivingFrame.crcCorrect)
+                    receiveMessage(receivingFrame.message);
+                else{
+                    char* errorMsg = "CRC Error: message flushed.";
+                    receiveMessage((uint8_t*)errorMsg);
+                }
+
                 break;
             }
-
-        if(receivingFrame.crcCorrect)
-            receiveMessage(receivingFrame.message);
-        else{
-            char* errorMsg = "CRC Error: message flushed.";
-            receiveMessage((uint8_t*)errorMsg);
-        }
-        
+            
         //delete[] receivingFrame.message;
     }
 
@@ -216,11 +223,17 @@ uint16_t crc16(const uint8_t* data_p, uint8_t length){
 
 bool compareCRC16(uint16_t crc16Result, uint16_t fullCRC16){
     bool isSameValue = crc16Result == fullCRC16;
-    if (isSameValue)
-        Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
-    else
-        Serial.printlnf("CRC ERROR: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
-
+    if (isSameValue){
+        WITH_LOCK(Serial){
+            Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+        }
+    }
+    else{
+        WITH_LOCK(Serial){
+            Serial.printlnf("CRC ERROR: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+        }
+    }
+        
     return isSameValue;
 };
 
@@ -234,10 +247,16 @@ bool compareReadData(const char* stage, uint8_t* bytesRead, uint8_t* bytesCompar
     }
 
     bool isSameValue = receivedSum == compareSum;
-    if (isSameValue)
-        Serial.printlnf("SUCCES: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
-    else
-        Serial.printlnf("ERROR: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
+    if (isSameValue){
+        WITH_LOCK(Serial){
+            Serial.printlnf("SUCCES: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
+        }
+    }
+    else{
+        WITH_LOCK(Serial){
+            Serial.printlnf("ERROR: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
+        }
+    }
 
     return isSameValue;
 };
