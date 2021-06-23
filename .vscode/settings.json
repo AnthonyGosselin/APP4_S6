@@ -5,5 +5,11 @@
     "files.associations": {
         "*.ino": "cpp"
     },
+<<<<<<< HEAD
     "particle.targetPlatform": "argon"
+=======
+    "particle.targetPlatform": "argon",
+    "particle.targetDevice": "",
+    "particle.firmwareVersion": "2.1.0"
+>>>>>>> bbfb18f5ca5770073808d4693302bb92cb546bcc
 }
