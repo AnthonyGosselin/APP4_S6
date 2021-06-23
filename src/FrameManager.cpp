@@ -192,7 +192,7 @@ void receiveData(uint8_t byteReceived) {
                 //Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
                 byteCounter = 0;
-                currentReceivingState = start;
+                currentReceivingState = preambule;
 
                 if(receivingFrame.crcCorrect)
                     receiveMessage(receivingFrame.message);
