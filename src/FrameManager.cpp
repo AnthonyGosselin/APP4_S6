@@ -88,6 +88,7 @@ void receiveData(uint8_t byteReceived) {
         case preambule:
             {
                 const char stageName[] = "Preambule";
+                Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.preambule, 1);}
                 currentReceivingState = start;
                 break;
@@ -97,6 +98,7 @@ void receiveData(uint8_t byteReceived) {
             {
                 receivingFrame.startEnd = byteReceived;
                 const char stageName[] = "Start";
+                Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
                 currentReceivingState = entete;
                 break;
@@ -106,11 +108,13 @@ void receiveData(uint8_t byteReceived) {
             {
                 if (byteCounter < 4){
                     const char stageName[] = "Entete (typeFlags)";
+                    Serial.printlnf("Stage: %s", stageName);
                     if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.typeFlag, 1);}
                     receivingFrame.typeFlag = byteReceived;
                 }
                 else{
                     const char stageName[] = "Entete (length)";
+                    Serial.printlnf("Stage: %s", stageName);
                     if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.messageLength, 1);}
                     receivingFrame.messageLength = byteReceived;
                     currentReceivingState = message;
@@ -124,6 +128,7 @@ void receiveData(uint8_t byteReceived) {
 
                 if (byteCounter < receivingFrame.messageLength + 4){
                     const char stageName[] = "Message";
+                    Serial.printlnf("Stage: %s", stageName);
                     if (isVerbose) {compareReadData(stageName, receivingFrame.message, sendingFrame.message, receivingFrame.messageLength);}
                     currentReceivingState = controle;
                 }
@@ -154,6 +159,7 @@ void receiveData(uint8_t byteReceived) {
         case end:
             {
                 const char stageName[] = "End";
+                Serial.printlnf("Stage: %s", stageName);
                 if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrame.startEnd, 1);}
                 byteCounter = 0;
                 currentReceivingState = start;
