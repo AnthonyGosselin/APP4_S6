@@ -216,7 +216,7 @@ bool compareCRC16(uint16_t crc16Result, uint16_t fullCRC16){
     bool isSameValue = crc16Result == fullCRC16;
     if (isSameValue){
         WITH_LOCK(Serial){
-            Serial.printlnf("CRC SUCCES: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
+            Serial.printlnf("CRC SUCCESS: \t Calculated %d, Received %d.", crc16Result, fullCRC16);
         }
     }
     else{
@@ -240,7 +240,7 @@ bool compareReadData(const char* stage, uint8_t* bytesRead, uint8_t* bytesCompar
     bool isSameValue = receivedSum == compareSum;
     if (isSameValue){
         WITH_LOCK(Serial){
-            Serial.printlnf("SUCCES: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
+            Serial.printlnf("SUCCESS: Received for %s: \t Expected %d, Received %d.", stage, compareSum, receivedSum);
         }
     }
     else{
