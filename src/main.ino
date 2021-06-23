@@ -1,36 +1,45 @@
-// #include "MessageManager.hpp"
-// #include "BitManager.hpp"
-// #include "GlobalVars.hpp"
+#include "MessageManager.hpp"
+#include "BitManager.hpp"
+#include "GlobalVars.hpp"
 
-//SYSTEM_THREAD(ENABLED);
+SYSTEM_THREAD(ENABLED);
 
 bool isVerbose = true;
+
+void messageThread();
 
 void setup() {
 	Serial.begin(9600);
 
-    Serial.println("STARTED PROGRAM");
-
-    //BitManagerSetup();
-
-    Serial.println("STARTED PROGRAM");
-
     waitFor(Serial.isConnected, 30000);
     Serial.println("Serial connected: starting");
+
+    Serial.println("STARTED PROGRAM");
+
+    Thread thread("messageThread", messageThread);
+
+    BitManagerSetup();
+
+    Serial.println("STARTED PROGRAM");  
 }
 
 void loop() {
 
-    delay(5000);
+}
 
-    // uint8_t message1[4] = {0b01010101, 0b10101010, 0b00001111, 0b11110000};
-    // uint8_t message1Size = 4;
-    // sendMessage(message1, message1Size);
+void messageThread() {
+    while (true) {
+        delay(5000);
+        Serial.println("Loop");
 
-    char* message2 = "Hello World!";
-    uint8_t message2Size = 13;
-    //sendMessage((uint8_t*)message2, message2Size);
+        // uint8_t message1[4] = {0b01010101, 0b10101010, 0b00001111, 0b11110000};
+        // uint8_t message1Size = 4;
+        // sendMessage(message1, message1Size);
 
-    delay(15000);
+        char* message2 = "Hello World!";
+        uint8_t message2Size = 13;
+        sendMessage((uint8_t*)message2, message2Size);
 
+        delay(500000);
+    }
 }
