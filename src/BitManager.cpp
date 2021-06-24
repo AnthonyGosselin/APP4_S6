@@ -33,7 +33,12 @@ bool skippedLastInputEvent = false;
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
 int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 1; // Fixed output clock
+const int outputClockPeriod = 7; // Fixed output clock
+
+// If 80% higher than one clock period: must be two periods (AKA: long period)
+float longPeriodMin;
+float longPeriodMax;
+float shortPeriodMin;
 
 system_tick_t lastThreadTime = 0;
 system_tick_t lastMessageTime = 0;
@@ -87,7 +92,7 @@ bool getTransmissionSpeed(){
         int elapsedTime = currentTime - firstSpeedInterruptTime;
         
         // Calculate speed by meaning
-        transmissionSpeed = elapsedTime/7/2; // ?? /2 ???
+        transmissionSpeed = elapsedTime/7/2;
 
         speedInterrupts = 0; // Reset counter
 
@@ -95,6 +100,11 @@ bool getTransmissionSpeed(){
             Serial.printlnf("Clock speed: %d ms", transmissionSpeed);
         }
         inputClockPeriod = transmissionSpeed; // Set global clock speed variable
+
+        // If 80% higher than one clock period: must be two periods (AKA: long period)
+        longPeriodMin = inputClockPeriod * 1.5;
+        longPeriodMax = inputClockPeriod * 2.5;
+        shortPeriodMin = inputClockPeriod * 0.5;
 
         return true;
     }
@@ -134,16 +144,17 @@ void inputEvent() {
     int duration = millis() - lastChangeTime;
     lastChangeTime = millis();
 
-    // If 80% higher than one clock period: must be two periods (AKA: long period)
-    float longPeriodMin = inputClockPeriod * 1.5;
-    float longPeriodMax = inputClockPeriod * 2.5;
-    float shortPeriodMin = inputClockPeriod * 0.5;
-
     if(duration < shortPeriodMin) {
-        if(BitMEFVerbose){
-            Serial.printlnf("Rejecting too short impulse of %d ms, smaller than min %f ms", duration, shortPeriodMin);
-        }
+        // if(BitMEFVerbose){
+        //     Serial.printlnf("Rejecting too short impulse of %d ms, smaller than min %f ms", duration, shortPeriodMin);
+        // }
         return;
+    }
+
+    // Reset higher state machine if long pause
+    if (duration > 5*longPeriodMax) {
+        //Serial.println("RESETING");
+        resetCounters();
     }
 
     inputCurrentStateHigh = digitalRead(inputPin) == HIGH; //!inputCurrentStateHigh;
@@ -165,7 +176,7 @@ void inputEvent() {
         newStateDuration = veryLongPeriod;
 
         CurrentInputState = initial;
-        if(BitMEFVerbose){Serial.println("Very long period detected: setting back to 'initial' input state");}
+        //if(BitMEFVerbose){Serial.println("Very long period detected: setting back to 'initial' input state");}
     }
     else if (duration >= longPeriodMin && duration < longPeriodMax) {
         newStateDuration = longPeriod;
@@ -175,7 +186,7 @@ void inputEvent() {
     }
     
     // Printing (debug)
-    if(BitMEFVerbose){Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", !inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);}
+    //if(BitMEFVerbose){Serial.printlnf("Read %s impulse duration: %d ms -> #%d (CurrentInputState: %d)", !inputCurrentStateHigh ? "HIGH" : "LOW", duration, newStateDuration, CurrentInputState);}
 
     // STATE MACHINE: Decode Manchester
     switch (CurrentInputState) {
@@ -184,7 +195,7 @@ void inputEvent() {
                 changeInputState(output0);
             } 
             else {
-                if(BitMEFVerbose){Serial.println("ERROR: initial state got longPeriod");}
+                //if(BitMEFVerbose){Serial.println("ERROR: initial state got longPeriod");}
             }
             break;
 
@@ -200,7 +211,7 @@ void inputEvent() {
 
         case waitShort:
             if (newStateDuration != shortPeriod) {
-                if(BitMEFVerbose){Serial.printlnf("ERROR: expected shortPeriod in wait state got #%d", newStateDuration);}
+                //if(BitMEFVerbose){Serial.printlnf("ERROR: expected shortPeriod in wait state got #%d", newStateDuration);}
             }
             changeInputState(output0);
             break;
@@ -213,14 +224,14 @@ void inputEvent() {
                 changeInputState(output0);
             }
             else {
-                if(BitMEFVerbose){Serial.println("UNDEFINED behaviour for veryLongPeriod in inputState 'output1'");}
+                //if(BitMEFVerbose){Serial.println("UNDEFINED behaviour for veryLongPeriod in inputState 'output1'");}
             }
 
             break;
         
         case waitLong:
             if (newStateDuration != shortPeriod) {
-                if(BitMEFVerbose){Serial.printlnf("ERROR: expected shortPeriod in wait state got #%d", newStateDuration);}
+                //if(BitMEFVerbose){Serial.printlnf("ERROR: expected shortPeriod in wait state got #%d", newStateDuration);}
             }
             changeInputState(output1);
             break;
@@ -279,13 +290,16 @@ void outputThread() {
     while(true) {
 
         // Check if more items in list than processed, if yes, process item at currentIndex
-        if(currentSendingFrameObjIndex <= sendingFrameObjIndex){
+        if(currentSendingFrameObjIndex < sendingFrameObjIndex){
             Serial.println("Ready to send frame!");
             isRecevingData = true;
+            //Serial.printlnf("Current sending %d, total sending %d", currentSendingFrameObjIndex, sendingFrameObjIndex);
+
             sendBitsManchester(sendingFrameObjList[currentSendingFrameObjIndex].bitArray, sendingFrameObjList[currentSendingFrameObjIndex].bitArraySize);
-            currentSendingFrameObjIndex++;
+
             isRecevingData = false;
             digitalWrite(outputPin, LOW);
+            currentSendingFrameObjIndex++;
         }
         else {
             //Serial.println("Not ready to send frame...");
