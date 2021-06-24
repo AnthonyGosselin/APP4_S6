@@ -27,16 +27,16 @@ bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare,
         char* msgCompare = (char*)byteCompare;
 
         isSame = !strcmp(msgRead, msgCompare);
-        if (isSame){
+        // if (isSame){
             WITH_LOCK(Serial){
-                Serial.printlnf("SUCCESS: Received message: \t \"%s\".", msgRead);
+                Serial.printlnf("Received message: \t \"%s\".", msgRead);
             }
-        }
-        else{
-            WITH_LOCK(Serial){
-                Serial.printlnf("ERROR: Received message: \t Expected \"%s\", Received \"%s\".", msgCompare, msgRead);
-            }
-        }
+        // }
+        // else{
+        //     WITH_LOCK(Serial){
+        //         Serial.printlnf("ERROR: Received message: \t Expected \"%s\", Received \"%s\".", msgCompare, msgRead);
+        //     }
+        // }
     }
     else{
         unsigned long receivedSum = 0;
@@ -47,16 +47,16 @@ bool compareReadMessage(bool isString, uint8_t *bytesRead, uint8_t *byteCompare,
         }
 
         isSame = receivedSum == compareSum;
-        if (isSame){
+        //if (isSame){
             WITH_LOCK(Serial){
-                Serial.printlnf("SUCCESS: Received message: \t Expected %lu, Received %lu.", compareSum, receivedSum);
+                Serial.printlnf("Received message: \t Received %lu.", receivedSum);
             }
-        }
-        else{
-            WITH_LOCK(Serial){
-                Serial.printlnf("ERROR: Received message: \t Expected %lu, Received %lu.", compareSum, receivedSum);
-            }
-        }
+        //}
+        // else{
+        //     WITH_LOCK(Serial){
+        //         Serial.printlnf("ERROR: Received message: \t Expected %lu, Received %lu.", compareSum, receivedSum);
+        //     }
+        // }
     }
     
     return isSame;

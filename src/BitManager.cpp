@@ -31,7 +31,7 @@ bool skippedLastInputEvent = false;
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
 int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 7; // Fixed output clock
+const int outputClockPeriod = 2; // Fixed output clock
 
 // If 80% higher than one clock period: must be two periods (AKA: long period)
 float longPeriodMin;
@@ -118,7 +118,7 @@ void changeInputState(InputState newInputState) {
                    Serial.println("READ: 0");
                 }
             }
-            receiveBit(0b00000000);
+            receiveBit(0b00000000, false);
             break;
         case output1:
             //Register that a 1 has been read
@@ -127,7 +127,7 @@ void changeInputState(InputState newInputState) {
                     Serial.println("READ: 1");
                 }
             }
-            receiveBit(0b00000001);
+            receiveBit(0b00000001, false);
             break;
     }
     CurrentInputState = newInputState; // Change to new state for next event
@@ -158,11 +158,11 @@ void inputEvent() {
     inputCurrentStateHigh = digitalRead(inputPin) == HIGH; //!inputCurrentStateHigh;
 
     //Compute transmission speed at the beginning of each frame
-    if (currentReceivingState == preambule) {
+    if (bitCounter == 0) {
         bool speedComputeComplete = getTransmissionSpeed();
         if (speedComputeComplete) {
             // Done receiving preambule bits
-            receiveData((uint8_t)0b01010101); // Notify msgManager that preambule has been received
+            receiveBit((uint8_t)0b01010101, true); // Notify msgManager that preambule has been received
             CurrentInputState = initial;
         }
         return;
@@ -261,28 +261,18 @@ void sendBitsManchester(bool bits[], int bitCount) {
             output(LOW);
             output(HIGH);
         }
-        // if ((i+1)%8 == 0){
-        //     if(isVerbose){
-        //         WITH_LOCK(Serial){
-        //             Serial.println("---------");
-        //         }
-        //     }
-        // }
     }
 
     digitalWrite(outputPin, LOW); // Bring back to low at the end of the message for next message
 }
 
 void outputThread() {
-    //delay(5000);
-    //Serial.println("Starting output loop");
     while(true) {
 
         // Check if more items in list than processed, if yes, process item at currentIndex
         if(currentSendingFrameObjIndex < sendingFrameObjIndex){
-            Serial.println("Ready to send frame!");
+            Serial.println("\n\n-----New frame!-----");
             isRecevingData = true;
-            //Serial.printlnf("Current sending %d, total sending %d", currentSendingFrameObjIndex, sendingFrameObjIndex);
 
             sendBitsManchester(sendingFrameObjList[currentSendingFrameObjIndex].bitArray, sendingFrameObjList[currentSendingFrameObjIndex].bitArraySize);
 
@@ -290,21 +280,8 @@ void outputThread() {
             digitalWrite(outputPin, LOW);
             currentSendingFrameObjIndex++;
         }
-        else {
-            //Serial.println("Not ready to send frame...");
-            Serial.print(".");
-        }
-
-        // if(readyToSendFrame){
-        //     Serial.println("Ready to send test frame!");
-
-        //     int length = 5;
-        //     bool bitsToSend[length] = {false, true, false, false, true};
-        //     sendBitsManchester(bitsToSend, length);
-        //     readyToSendFrame = false;
-        // }
         // else {
-        //     Serial.println("Not ready to send test frame...");
+        //     Serial.print(".");
         // }
         
         os_thread_delay_until(&lastThreadTime, 200);

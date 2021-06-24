@@ -1,58 +1,53 @@
 #pragma once
 #include <stdint.h>
 
-enum FrameManagerState { preambule, start, entete, message, controle, end };
+// enum FrameManagerState { preambule, start, entete, message, controle, end };
 
-// struct frame {
-//     uint8_t preambule = 0b01010101;
-//     uint8_t startEnd = 0b01111110;
-//     uint8_t typeFlag = 0b00000000;
-//     uint8_t messageLength = 0b00000001;
-//     uint8_t* message = new uint8_t[80]{0};
-//     uint8_t crc16[2];
-// };
+extern uint8_t currentByteBuffer[87];
 
 class Frame{
 public:
-    bool isSender = false;
-
     uint8_t preambule = 0b01010101;
-    uint8_t startEnd = 0b01111110;
+    uint8_t start = 0b01111110;
     uint8_t typeFlag = 0b00000000;
     uint8_t messageLength = 0b00000001;
     uint8_t message[80];
     uint8_t crc16[2];
+    uint8_t end = 0b01111110;
     bool crcCorrect = false;
 
-    uint8_t byteArray[80];
+    uint8_t byteArray[87];
     bool* bitArray = nullptr;
     int bitArraySize;
 
     ~Frame(){
-        // if(message != nullptr)
-        //     delete[] message;
         if(bitArray != nullptr)
             delete[] bitArray;
     };
 
     void setupArrays(){
-        //message = new uint8_t[messageLength];
 
-        if (isSender){
-            bitArraySize = (messageLength + 7) * 8;
-            bitArray = new bool[bitArraySize];
-        }
+        bitArraySize = (messageLength + 7) * 8;
+        bitArray = new bool[bitArraySize];
     }
 
     void spliceByteArray(){
-        preambule = byteArray[0];
-        startEnd = byteArray[1];
-        typeFlag = byteArray[2];
-        messageLength = byteArray[3];
-        preambule = byteArray[4];
-        preambule = byteArray[5];
-        preambule = byteArray[6];
-        preambule = byteArray[7];
+        preambule = currentByteBuffer[0];
+        start = currentByteBuffer[1];
+        typeFlag = currentByteBuffer[2];
+        //messageLength = byteArray[3];
+
+        for(int i=0; i < messageLength; i++)
+            message[i] = currentByteBuffer[i+4];
+        
+        crc16[0] = currentByteBuffer[messageLength-1+5];
+        crc16[1] = currentByteBuffer[messageLength-1+6];
+
+        end = currentByteBuffer[messageLength-1+7];
+
+        // if(isVerbose){
+        //     compareReadData(stageName, &byteReceived, &sendingFrameObjList[receivingFrameObjIndex].preambule, 1);
+        // }
         
     }
 
@@ -60,21 +55,27 @@ public:
 
 //extern bool isSending;
 
+extern int bitCounter;
+
 extern int currentSendingFrameObjIndex;
 extern int sendingFrameObjIndex;
 extern int receivingFrameObjIndex;
-extern Frame sendingFrameObjList[100];
-extern Frame receivingFrameObjList[100];
+extern Frame sendingFrameObjList[25];
+extern Frame receivingFrameObjList[25];
+
+
 
 // extern frame sendingFrame;
 // extern frame receivingFrame;
 
-extern FrameManagerState currentSendingState;
-extern FrameManagerState currentReceivingState;
+//extern FrameManagerState currentSendingState;
+//extern FrameManagerState currentReceivingState;
 
 
 void sendDataFrame(uint8_t*, uint8_t, bool);
-void receiveBit(uint8_t);
+void startTransmission();
+void endTransmission();
+void receiveBit(uint8_t, bool);
 void resetCounters();
 void receiveData(uint8_t);
 void calcCRCNSend();
