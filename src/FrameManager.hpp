@@ -14,41 +14,44 @@ enum FrameManagerState { preambule, start, entete, message, controle, end };
 
 class Frame{
 public:
+    bool isSender = false;
+
     uint8_t preambule = 0b01010101;
     uint8_t startEnd = 0b01111110;
     uint8_t typeFlag = 0b00000000;
     uint8_t messageLength = 0b00000001;
-    uint8_t* message;
-    uint8_t* crc16;
+    uint8_t* message = nullptr;
+    uint8_t crc16[2];
     bool crcCorrect = false;
 
-    bool* bitArray;
-    uint8_t bitArraySize;
+    bool* bitArray = nullptr;
+    int bitArraySize;
 
     ~Frame(){
-        if(message)
+        if(message != nullptr)
             delete[] message;
-        if(bitArray)
+        if(bitArray != nullptr)
             delete[] bitArray;
     };
 
+    void setupArrays(){
+        message = new uint8_t[messageLength];
 
-    // Frame(uint8_t flag=0b00000000, uint8_t mLength=0., uint8_t* msg, uint8_t crc[2]){
-    //     typeFlag = flag;
-    //     messageLength = flag;
-    //     crc16 = crc;
-    //     message = msg;
-    // }
+        if (isSender){
+            bitArraySize = (messageLength + 7) * 8;
+            bitArray = new bool[bitArraySize];
+        }
+    }
 
 };
 
-extern bool isSending;
+//extern bool isSending;
 
-extern int currentSendingFrameObjIndex = 0;
-extern int sendingFrameObjIndex = -1;
-extern int receivingFrameObjIndex = -1;
-extern Frame sendingFrameObjList[10];
-extern Frame receivingFrameObjList[10];
+extern int currentSendingFrameObjIndex;
+extern int sendingFrameObjIndex;
+extern int receivingFrameObjIndex;
+extern Frame sendingFrameObjList[2];
+extern Frame receivingFrameObjList[2];
 
 // extern frame sendingFrame;
 // extern frame receivingFrame;

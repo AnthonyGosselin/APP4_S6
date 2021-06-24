@@ -41,16 +41,18 @@ void loop() {
 void messageThread() {
     while (true) {
         
-        Serial.println("Loop");
+        os_thread_delay_until(&messageTime, 2000);
+        Serial.println("\n\nLoop");
 
-        // uint8_t message1[4] = {1, 0, 1, 0};
+        // uint8_t message1[4] = {1, 0, 1, 0}; // :)
         // uint8_t message1Size = 4;
         // sendMessage(message1, message1Size);
 
-        char* message2 = "Hello World!";
-        uint8_t message2Size = 13;
+        char* message2 = "Hello, World!";
+        uint8_t message2Size = 14;
         sendMessage((uint8_t*)message2, message2Size, false);
 
-        os_thread_delay_until(&messageTime, 20000);
+
+        os_thread_delay_until(&messageTime, 200000);
     }
 }

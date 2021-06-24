@@ -31,7 +31,7 @@ bool skippedLastInputEvent = false;
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
 int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 1; // Fixed output clock
+const int outputClockPeriod = 10; // Fixed output clock
 
 system_tick_t lastThreadTime = 0;
 system_tick_t lastMessageTime = 0;
@@ -85,7 +85,7 @@ bool getTransmissionSpeed(){
         int elapsedTime = currentTime - firstSpeedInterruptTime;
         
         // Calculate speed by meaning
-        transmissionSpeed = elapsedTime/7/2; // ?? /2 ???
+        transmissionSpeed = elapsedTime/7/2;
 
         speedInterrupts = 0; // Reset counter
 
@@ -268,13 +268,16 @@ void outputThread() {
     while(true) {
 
         // Check if more items in list than processed, if yes, process item at currentIndex
-        if(currentSendingFrameObjIndex <= sendingFrameObjIndex){
+        if(currentSendingFrameObjIndex < sendingFrameObjIndex){
             Serial.println("Ready to send frame!");
             isRecevingData = true;
+            Serial.printlnf("Current sending %d, total sending %d", currentSendingFrameObjIndex, sendingFrameObjIndex);
+
             sendBitsManchester(sendingFrameObjList[currentSendingFrameObjIndex].bitArray, sendingFrameObjList[currentSendingFrameObjIndex].bitArraySize);
-            currentSendingFrameObjIndex++;
+
             isRecevingData = false;
             digitalWrite(outputPin, LOW);
+            currentSendingFrameObjIndex++;
         }
         else {
             //Serial.println("Not ready to send frame...");

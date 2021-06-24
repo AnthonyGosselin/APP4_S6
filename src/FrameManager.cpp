@@ -15,9 +15,10 @@ uint8_t byteConcat = 0;
 
 int currentSendingFrameObjIndex = 0;
 int sendingFrameObjIndex = 0;
-int currentReceivingFrameObjIndex = 0;
-// Frame sendingFrameObjList[10];
-// Frame receivingFrameObjList[10];
+int receivingFrameObjIndex = 0;
+Frame sendingFrameObjList[2];
+Frame receivingFrameObjList[2];
+
 Frame sendingFrameObj;
 Frame receivingFrameObj;
 
@@ -30,10 +31,8 @@ bool readyToSendFrame = false;
 void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
 
     uint8_t *byteArray = new uint8_t[messageSize+7];
-    bool* tempBitArray = new bool[(messageSize+7)*8];
-
     sendingFrameObj = Frame();
-    sendingFrameObjList[sendingFrameObjIndex] = sendingFrameObj;
+    sendingFrameObj.isSender = true;
 
     // Set at first/doesnt change (preamb, start)
     byteArray[0] = sendingFrameObj.preambule; 
@@ -53,9 +52,12 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
     sendingFrameObj.messageLength = messageSize;
     byteArray[3] = sendingFrameObj.messageLength;
 
+    // Setup arrays
+    sendingFrameObj.setupArrays();
+
     // Add message byte per byte
     for(int i = 0; i < messageSize; i++){
-        sendingFrameObj.message[i] = messageToSend[i];
+        sendingFrameObj.message[messageToSend[i]];
         byteArray[i+4] = sendingFrameObj.message[i]; 
     }
         
@@ -73,15 +75,14 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
     for (int i=0; i<messageSize+7; i++){
         uint8_t bitMask = 0b10000000;
         for(int j=0; j < 8; j++){
-            tempBitArray[i*8+j] = byteArray[i] & bitMask;
+            sendingFrameObj.bitArray[i*8+j] = byteArray[i] & bitMask;
             bitMask >>= 1;
-            sendingFrameObj.bitArraySize++;
         }
     }
 
-    sendingFrameObj.bitArray = tempBitArray;
 
     delete[] byteArray;
+    sendingFrameObjList[sendingFrameObjIndex] = sendingFrameObj;
     sendingFrameObjIndex++;
 };
 
@@ -91,23 +92,24 @@ void receiveBit(uint8_t bitReceived){
     bitCounter++;
     byteConcat = (byteConcat << 1) | bitReceived;
     
-    if (!(bitCounter%8)){
+    if (bitCounter >= 8){
         receiveData(byteConcat);
+        bitCounter = 0;
     }
 };
 
 void receiveData(uint8_t byteReceived) {
 
-    //Serial.printlnf("Received byte %d", (int)byteReceived);
+    
     byteCounter++;
+    Serial.printlnf("Received byte %d at spot %d", byteReceived, byteCounter);
+    
 
     switch(currentReceivingState){
 
         case preambule:
             {   
-                receivingFrameObjIndex++;
                 receivingFrameObj = Frame();
-                receivingFrameObjList[receivingFrameObjIndex] = receivingFrameObj;
 
                 const char stageName[] = "Preambule";
                 //Serial.printlnf("Stage: %s", stageName);
@@ -138,7 +140,10 @@ void receiveData(uint8_t byteReceived) {
                     const char stageName[] = "Entete (length)";
                     //Serial.printlnf("Stage: %s", stageName);
                     if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrameObjList[receivingFrameObjIndex].messageLength, 1);}
-                    receivingFrameObjList[receivingFrameObjIndex].messageLength = byteReceived;
+                    if (byteReceived > 80)
+                        byteReceived = 80;
+                    receivingFrameObj.messageLength = byteReceived;
+                    receivingFrameObjList[receivingFrameObjIndex].setupArrays();
                     currentReceivingState = message;
 
                     // delete[] receivingFrame.message;
@@ -151,14 +156,15 @@ void receiveData(uint8_t byteReceived) {
         case message:
             {
                 const char stageName[] = "Message";
-                receivingFrameObjList[receivingFrameObjIndex].message[byteCounter-5] = byteReceived;
+                receivingFrameObj.message[byteCounter-5] = byteReceived;
+                //receivingFrameObj.message[byteReceived];
 
-                if (byteCounter < receivingFrameObjList[receivingFrameObjIndex].messageLength + 4){
-                    if (isVerbose) {compareReadData(stageName, &receivingFrameObjList[receivingFrameObjIndex].message[byteCounter-5], &sendingFrameObjList[receivingFrameObjIndex].message[byteCounter-5], 1);}
+                if (byteCounter < receivingFrameObj.messageLength + 4){
+                    if (isVerbose) {compareReadData(stageName, &receivingFrameObj.message[byteCounter-5], &sendingFrameObjList[receivingFrameObjIndex].message[byteCounter-5], 1);}
                 }
                 else{
-                    if (isVerbose) {compareReadData(stageName, &receivingFrameObjList[receivingFrameObjIndex].message[byteCounter-5], &sendingFrameObjList[receivingFrameObjIndex].message[byteCounter-5], 1);}
-                    if (isVerbose) {compareReadData(stageName, receivingFrameObjList[receivingFrameObjIndex].message, sendingFrameObjList[receivingFrameObjIndex].message, receivingFrameObjList[receivingFrameObjIndex].messageLength);}
+                    if (isVerbose) {compareReadData(stageName, &receivingFrameObj.message[byteCounter-5], &sendingFrameObjList[receivingFrameObjIndex].message[byteCounter-5], 1);}
+                    if (isVerbose) {compareReadData(stageName, &receivingFrameObj.message[0], &sendingFrameObjList[receivingFrameObjIndex].message[0], receivingFrameObj.messageLength);}
                     currentReceivingState = controle;
                 }
                 break;  
@@ -169,19 +175,19 @@ void receiveData(uint8_t byteReceived) {
                 const char stageName[] = "CRC";
 
                 // CRC first half
-                if (byteCounter < receivingFrameObjList[receivingFrameObjIndex].messageLength + 6){
-                    receivingFrameObjList[receivingFrameObjIndex].crc16[0] = byteReceived;
-                    if (isVerbose) {compareReadData(stageName, &receivingFrameObjList[receivingFrameObjIndex].crc16[0], &sendingFrameObjList[receivingFrameObjIndex].crc16[0], 1);}
+                if (byteCounter < receivingFrameObj.messageLength + 6){
+                    receivingFrameObj.crc16[0] = byteReceived;
+                    if (isVerbose) {compareReadData(stageName, &receivingFrameObj.crc16[0], &sendingFrameObjList[receivingFrameObjIndex].crc16[0], 1);}
                 }
                 else{
                     // Gerer CRC16
-                    receivingFrameObjList[receivingFrameObjIndex].crc16[1] = byteReceived;
-                    if (isVerbose) {compareReadData(stageName, &receivingFrameObjList[receivingFrameObjIndex].crc16[1], &sendingFrameObjList[receivingFrameObjIndex].crc16[1], 1);}
-                    uint16_t fullCRC16 =  receivingFrameObjList[receivingFrameObjIndex].crc16[0] << 8 | receivingFrameObjList[receivingFrameObjIndex].crc16[1];
-                    uint16_t crc16Result = crc16(receivingFrameObjList[receivingFrameObjIndex].message, receivingFrameObjList[receivingFrameObjIndex].messageLength);
+                    receivingFrameObj.crc16[1] = byteReceived;
+                    if (isVerbose) {compareReadData(stageName, &receivingFrameObj.crc16[1], &sendingFrameObjList[receivingFrameObjIndex].crc16[1], 1);}
+                    uint16_t fullCRC16 =  receivingFrameObj.crc16[0] << 8 | receivingFrameObj.crc16[1];
+                    uint16_t crc16Result = crc16(&receivingFrameObj.message[0], receivingFrameObj.messageLength);
 
                     if(compareCRC16(crc16Result, fullCRC16))
-                        receivingFrameObjList[receivingFrameObjIndex].crcCorrect = true;
+                        receivingFrameObj.crcCorrect = true;
 
                     currentReceivingState = end;
                 }
@@ -193,16 +199,20 @@ void receiveData(uint8_t byteReceived) {
             {
                 const char stageName[] = "End";
                 //Serial.printlnf("Stage: %s", stageName);
-                if (isVerbose) {compareReadData(stageName, &byteReceived, &receivingFrameObjList[receivingFrameObjIndex].startEnd, 1);}
+                if (isVerbose) {compareReadData(stageName, &byteReceived, &sendingFrameObjList[receivingFrameObjIndex].startEnd, 1);}
                 byteCounter = 0;
                 currentReceivingState = preambule;
 
+                receivingFrameObjList[receivingFrameObjIndex] = receivingFrameObj;
+
                 //if(receivingFrame.crcCorrect)
-                receiveMessage(receivingFrameObjList[receivingFrameObjIndex].message);
+                receiveMessage(&receivingFrameObjList[receivingFrameObjIndex].message[0]);
                 // else{
                 //     char* errorMsg = "CRC Error: message flushed.";
                 //     receiveMessage((uint8_t*)errorMsg);
                 // }
+
+                receivingFrameObjIndex++;
 
                 break;
             }
