@@ -4,7 +4,8 @@
 
 SYSTEM_THREAD(ENABLED);
 
-bool isVerbose = true;
+bool isVerbose = false;
+bool insertBitError = false;
 
 system_tick_t messageTime = 0;
 

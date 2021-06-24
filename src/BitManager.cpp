@@ -2,6 +2,8 @@
 #include "BitManager.hpp"
 #include "FrameManager.hpp"
 
+#include <stdlib.h>     /* srand, rand */
+
 SYSTEM_THREAD(ENABLED);
 
 enum StateDuration {
@@ -90,7 +92,7 @@ bool getTransmissionSpeed(){
         speedInterrupts = 0; // Reset counter
 
         WITH_LOCK(Serial){
-            Serial.printlnf("Clock speed: %d", transmissionSpeed);
+            Serial.printlnf("Clock speed: %d ms", transmissionSpeed);
         }
         inputClockPeriod = transmissionSpeed; // Set global clock speed variable
 
@@ -237,8 +239,17 @@ void output(PinState level) {
 }
 
 void sendBitsManchester(bool bits[], int bitCount) {
+    int errorBitIndex = rand() % bitCount + 50;
+
     for (int i = 0; i < bitCount; i++) {
-        if (bits[i] == BIT1) {
+
+        bool bitValue = bits[i];
+        if (insertBitError && i == errorBitIndex) { 
+            Serial.printlnf("Error bit at index %d (%d -> %d)", i, bitValue, !bitValue);
+            bitValue = !bitValue;
+        }
+
+        if (bitValue == BIT1) {
             // Send 1 in Manchester
             //Serial.println("SEND: 1");
             output(HIGH);
