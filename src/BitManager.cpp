@@ -36,6 +36,8 @@ const int outputClockPeriod = 1; // Fixed output clock
 system_tick_t lastThreadTime = 0;
 system_tick_t lastMessageTime = 0;
 
+bool isRecevingData = false;
+
 void BitManagerSetup() {
 
     pinMode(outputPin, OUTPUT_OPEN_DRAIN);
@@ -123,7 +125,7 @@ void changeInputState(InputState newInputState) {
 
 void inputEvent() {
 
-    if(!readyToSendFrame){
+    if(!isRecevingData){
         return;
     }
 
@@ -265,11 +267,13 @@ void outputThread() {
     //Serial.println("Starting output loop");
     while(true) {
 
-
-        if(readyToSendFrame){
+        // Check if more items in list than processed, if yes, process item at currentIndex
+        if(currentSendingFrameObjIndex <= sendingFrameObjIndex){
             Serial.println("Ready to send frame!");
-            sendBitsManchester(bitArray, bitArraySize);
-            readyToSendFrame = false;
+            isRecevingData = true;
+            sendBitsManchester(sendingFrameObjList[currentSendingFrameObjIndex].bitArray, sendingFrameObjList[currentSendingFrameObjIndex].bitArraySize);
+            currentSendingFrameObjIndex++;
+            isRecevingData = false;
             digitalWrite(outputPin, LOW);
         }
         else {

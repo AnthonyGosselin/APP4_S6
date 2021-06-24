@@ -13,7 +13,7 @@ void sendMessage(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
 };
 
 void receiveMessage(uint8_t* messageReceived) {
-    compareReadMessage(true, messageReceived, lastMessageSent, receivingFrame.messageLength);
+    compareReadMessage(true, messageReceived, sendingFrameObjList[receivingFrameObjIndex].message, receivingFrameObjList[receivingFrameObjIndex].messageLength);
     // WITH_LOCK(Serial){
     //     Serial.printlnf("Received message: \t Expected \"%s\", Received \"%s\".", lastMessageSent, messageReceived);
     // }
