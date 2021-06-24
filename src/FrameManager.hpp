@@ -24,6 +24,7 @@ public:
     uint8_t crc16[2];
     bool crcCorrect = false;
 
+    uint8_t byteArray[80];
     bool* bitArray = nullptr;
     int bitArraySize;
 
@@ -41,6 +42,18 @@ public:
             bitArraySize = (messageLength + 7) * 8;
             bitArray = new bool[bitArraySize];
         }
+    }
+
+    void spliceByteArray(){
+        preambule = byteArray[0];
+        startEnd = byteArray[1];
+        typeFlag = byteArray[2];
+        messageLength = byteArray[3];
+        preambule = byteArray[4];
+        preambule = byteArray[5];
+        preambule = byteArray[6];
+        preambule = byteArray[7];
+        
     }
 
 };

@@ -54,7 +54,11 @@ void messageThread() {
 
         os_thread_delay_until(&messageTime, 10000);
 
-        char* message3 = "Hello! My name is Etienne. Nice to meet you! I like to microwave my pop tarts!";
+        // char* message3 = "Hello! My name is Etienne. Nice to meet you! I like microwaved my pop tarts!";
+        // uint8_t message3Size = 79;
+        // sendMessage((uint8_t*)message3, message3Size, false);
+
+        char* message3 = "Hello! My name is Etienne. Nice to meet you!";
         uint8_t message3Size = 79;
         sendMessage((uint8_t*)message3, message3Size, false);
 
