@@ -4,7 +4,7 @@
 
 SYSTEM_THREAD(ENABLED);
 
-bool isVerbose = true;
+bool isVerbose = false;
 
 system_tick_t messageTime = 0;
 
@@ -37,13 +37,18 @@ void messageThread() {
 
         // uint8_t message1[4] = {1, 0, 1, 0}; // :)
         // uint8_t message1Size = 4;
-        // sendMessage(message1, message1Size);
+        // sendMessage(message1, message1Size, false);
 
         char* message2 = "Hello, World!";
         uint8_t message2Size = 14;
         sendMessage((uint8_t*)message2, message2Size, false);
 
+        os_thread_delay_until(&messageTime, 10000);
 
-        os_thread_delay_until(&messageTime, 200000);
+        char* message3 = "Hello! My name is Etienne. Nice to meet you! I like to microwave my pop tarts!";
+        uint8_t message3Size = 79;
+        sendMessage((uint8_t*)message3, message3Size, false);
+
+        os_thread_delay_until(&messageTime, 10000);
     }
 }

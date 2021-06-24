@@ -31,7 +31,7 @@ bool skippedLastInputEvent = false;
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
 int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 10; // Fixed output clock
+const int outputClockPeriod = 1; // Fixed output clock
 
 system_tick_t lastThreadTime = 0;
 system_tick_t lastMessageTime = 0;
@@ -142,6 +142,12 @@ void inputEvent() {
             Serial.printlnf("Rejecting too short impulse of %d ms, smaller than min %f ms", duration, shortPeriodMin);
         }
         return;
+    }
+
+    // Reset higher state machine if long pause
+    if (duration > 5*longPeriodMax) {
+        //Serial.println("RESETING");
+        resetCounters();
     }
 
     inputCurrentStateHigh = digitalRead(inputPin) == HIGH; //!inputCurrentStateHigh;
@@ -271,7 +277,7 @@ void outputThread() {
         if(currentSendingFrameObjIndex < sendingFrameObjIndex){
             Serial.println("Ready to send frame!");
             isRecevingData = true;
-            Serial.printlnf("Current sending %d, total sending %d", currentSendingFrameObjIndex, sendingFrameObjIndex);
+            //Serial.printlnf("Current sending %d, total sending %d", currentSendingFrameObjIndex, sendingFrameObjIndex);
 
             sendBitsManchester(sendingFrameObjList[currentSendingFrameObjIndex].bitArray, sendingFrameObjList[currentSendingFrameObjIndex].bitArraySize);
 
