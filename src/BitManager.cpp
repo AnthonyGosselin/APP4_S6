@@ -32,8 +32,8 @@ bool skippedLastInputEvent = false;
 
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
-int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 1; // Fixed output clock
+int inputClockPeriod = 1; // Will be updated depending on preambule (us)
+const float outputClockPeriod = 250; // Fixed output clock (us)
 
 // If 80% higher than one clock period: must be two periods (AKA: long period)
 float longPeriodMin;
@@ -82,13 +82,13 @@ bool getTransmissionSpeed(){
 
     if (speedInterrupts < 7){
         if (speedInterrupts == 0)
-            firstSpeedInterruptTime = millis();
+            firstSpeedInterruptTime = micros();
         speedInterrupts++;
         return false;
     }
     else{
         // Get time since last interrupt
-        unsigned long currentTime = millis();
+        unsigned long currentTime = micros();
         int elapsedTime = currentTime - firstSpeedInterruptTime;
         
         // Calculate speed by meaning
@@ -96,10 +96,10 @@ bool getTransmissionSpeed(){
 
         speedInterrupts = 0; // Reset counter
 
-        WITH_LOCK(Serial){
-            Serial.printlnf("Clock speed detected: %d ms", transmissionSpeed);
-        }
         inputClockPeriod = transmissionSpeed; // Set global clock speed variable
+        WITH_LOCK(Serial){
+            Serial.printlnf("Clock speed detected: %d us", inputClockPeriod);
+        }
 
         // If 80% higher than one clock period: must be two periods (AKA: long period)
         longPeriodMin = inputClockPeriod * 1.5;
@@ -137,12 +137,13 @@ void changeInputState(InputState newInputState) {
 
 void inputEvent() {
 
+    microTimer = micros();
     if(!isRecevingData){
         return;
     }
 
-    int duration = millis() - lastChangeTime;
-    lastChangeTime = millis();
+    int duration = micros() - lastChangeTime;
+    lastChangeTime = micros();
 
     if(duration < shortPeriodMin) {
         // if(BitMEFVerbose){
@@ -246,7 +247,8 @@ void inputEvent() {
 
 void output(PinState level) {
     digitalWrite(outputPin, level);
-    os_thread_delay_until(&lastThreadTime, outputClockPeriod);
+    //os_thread_delay_until(&lastThreadTime, outputClockPeriod);
+    System.ticksDelay(outputClockPeriod*System.ticksPerMicrosecond());
 }
 
 void sendBitsManchester(bool bits[], int bitCount) {
@@ -291,9 +293,9 @@ void outputThread() {
             digitalWrite(outputPin, LOW);
             currentSendingFrameObjIndex++;
         }
-        else {
-            Serial.print(".");
-        }
+        // else {
+        //     Serial.print(".");
+        // }
         
         os_thread_delay_until(&lastThreadTime, 200);
 	}

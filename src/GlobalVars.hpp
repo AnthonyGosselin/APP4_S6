@@ -4,3 +4,4 @@
 extern bool isVerbose;
 extern bool BitMEFVerbose;
 extern bool insertBitError;
+extern int microTimer;

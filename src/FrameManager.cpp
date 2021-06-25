@@ -13,11 +13,13 @@ uint8_t byteConcat = 0;
 int currentSendingFrameObjIndex = 0;
 int sendingFrameObjIndex = 0;
 int receivingFrameObjIndex = -1;
-Frame sendingFrameObjList[25];
-Frame receivingFrameObjList[25];
+Frame sendingFrameObjList[50];
+Frame receivingFrameObjList[50];
 
 Frame sendingFrameObj;
 Frame receivingFrameObj;
+
+int successMessageCounter = 0;
 
 //FrameManagerState currentSendingState = preambule;
 //FrameManagerState currentReceivingState = preambule;
@@ -89,6 +91,8 @@ void resetCounters(){
     //currentReceivingState = preambule;
     bitCounter = 0;
     byteCounter = 0;
+
+    Serial.printlnf("Success count: %d/%d", successMessageCounter, sendingFrameObjIndex-1);
 }
 
 void receiveBit(uint8_t bitReceived, bool isFullByte){
@@ -122,6 +126,8 @@ void receiveBit(uint8_t bitReceived, bool isFullByte){
         //Serial.printlnf("Byte Counter: %d", byteCounter);
         byteCounter++;
     }
+
+    //Serial.printlnf("T: %d", micros() - microTimer);
 };
 
 
@@ -132,8 +138,10 @@ void endTransmission(){
     uint16_t fullCRC16 =  receivingFrameObj.crc16[0] << 8 | receivingFrameObj.crc16[1];
     uint16_t crc16Result = crc16(&receivingFrameObj.message[0], receivingFrameObj.messageLength);
 
-    if(compareCRC16(crc16Result, fullCRC16))
+    if (compareCRC16(crc16Result, fullCRC16)) {
         receivingFrameObj.crcCorrect = true;
+        successMessageCounter++;
+    }
 
     receivingFrameObjList[receivingFrameObjIndex] = receivingFrameObj;
     receivingFrameObjIndex++;

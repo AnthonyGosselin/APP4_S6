@@ -60,8 +60,8 @@ extern int bitCounter;
 extern int currentSendingFrameObjIndex;
 extern int sendingFrameObjIndex;
 extern int receivingFrameObjIndex;
-extern Frame sendingFrameObjList[25];
-extern Frame receivingFrameObjList[25];
+extern Frame sendingFrameObjList[50];
+extern Frame receivingFrameObjList[50];
 
 
 
