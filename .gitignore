@@ -18,3 +18,5 @@ target/2.1.0/argon/APP4_S6.elf
 target/2.1.0/argon/APP4_S6.dfu
 
 target/2.1.0/argon/APP4_S6.bin.no_crc
+
+main.cpp
