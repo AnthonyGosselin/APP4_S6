@@ -33,7 +33,7 @@ bool skippedLastInputEvent = false;
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
 int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 2; // Fixed output clock
+const int outputClockPeriod = 1; // Fixed output clock
 
 // If 80% higher than one clock period: must be two periods (AKA: long period)
 float longPeriodMin;
@@ -97,7 +97,7 @@ bool getTransmissionSpeed(){
         speedInterrupts = 0; // Reset counter
 
         WITH_LOCK(Serial){
-            Serial.printlnf("Clock speed: %d ms", transmissionSpeed);
+            Serial.printlnf("Clock speed detected: %d ms", transmissionSpeed);
         }
         inputClockPeriod = transmissionSpeed; // Set global clock speed variable
 
@@ -250,13 +250,13 @@ void output(PinState level) {
 }
 
 void sendBitsManchester(bool bits[], int bitCount) {
-    int errorBitIndex = rand() % bitCount + 50;
+    int errorBitIndex = rand() % (bitCount - 40) + 50;
 
     for (int i = 0; i < bitCount; i++) {
 
         bool bitValue = bits[i];
         if (insertBitError && i == errorBitIndex) { 
-            Serial.printlnf("Error bit at index %d (%d -> %d)", i, bitValue, !bitValue);
+            Serial.printlnf("Inserting error bit at index %d (%d -> %d)", i, bitValue, !bitValue);
             bitValue = !bitValue;
         }
 
@@ -291,9 +291,9 @@ void outputThread() {
             digitalWrite(outputPin, LOW);
             currentSendingFrameObjIndex++;
         }
-        // else {
-        //     Serial.print(".");
-        // }
+        else {
+            Serial.print(".");
+        }
         
         os_thread_delay_until(&lastThreadTime, 200);
 	}
