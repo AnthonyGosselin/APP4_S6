@@ -31,7 +31,7 @@ bool skippedLastInputEvent = false;
 bool inputCurrentStateHigh = false;
 int lastChangeTime = 0;
 int inputClockPeriod = 1; // Will be updated depending on preambule
-const int outputClockPeriod = 2; // Fixed output clock
+int outputClockPeriod = 5; // Fixed output clock
 
 // If 80% higher than one clock period: must be two periods (AKA: long period)
 float longPeriodMin;
@@ -262,7 +262,8 @@ void sendBitsManchester(bool bits[], int bitCount) {
             output(HIGH);
         }
     }
-
+    
+    Serial.println("Finished sending1");
     digitalWrite(outputPin, LOW); // Bring back to low at the end of the message for next message
 }
 
@@ -274,8 +275,12 @@ void outputThread() {
             Serial.println("\n\n-----New frame!-----");
             isRecevingData = true;
 
+            // Set clock to frame depending how many ACKs were missed
+            outputClockPeriod = sendingFrameObjList[currentSendingFrameObjIndex].frameOutputSpeed;
+
             sendBitsManchester(sendingFrameObjList[currentSendingFrameObjIndex].bitArray, sendingFrameObjList[currentSendingFrameObjIndex].bitArraySize);
 
+            Serial.println("Finished sending2");
             isRecevingData = false;
             digitalWrite(outputPin, LOW);
             currentSendingFrameObjIndex++;

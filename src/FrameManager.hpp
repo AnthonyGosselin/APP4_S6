@@ -15,10 +15,13 @@ public:
     uint8_t crc16[2];
     uint8_t end = 0b01111110;
     bool crcCorrect = false;
+    bool receivedACK = false;
 
     uint8_t byteArray[87];
     bool* bitArray = nullptr;
     int bitArraySize;
+
+    int frameOutputSpeed = 5;
 
     ~Frame(){
         if(bitArray != nullptr)
@@ -32,18 +35,18 @@ public:
     }
 
     void spliceByteArray(){
-        preambule = currentByteBuffer[0];
-        start = currentByteBuffer[1];
-        typeFlag = currentByteBuffer[2];
+        preambule = byteArray[0];
+        start = byteArray[1];
+        typeFlag = byteArray[2];
         //messageLength = byteArray[3];
 
         for(int i=0; i < messageLength; i++)
-            message[i] = currentByteBuffer[i+4];
+            message[i] = byteArray[i+4];
         
-        crc16[0] = currentByteBuffer[messageLength-1+5];
-        crc16[1] = currentByteBuffer[messageLength-1+6];
+        crc16[0] = byteArray[messageLength-1+5];
+        crc16[1] = byteArray[messageLength-1+6];
 
-        end = currentByteBuffer[messageLength-1+7];
+        end = byteArray[messageLength-1+7];
 
         // if(isVerbose){
         //     compareReadData(stageName, &byteReceived, &sendingFrameObjList[receivingFrameObjIndex].preambule, 1);
@@ -72,7 +75,8 @@ extern Frame receivingFrameObjList[25];
 //extern FrameManagerState currentReceivingState;
 
 
-void sendDataFrame(uint8_t*, uint8_t, bool);
+void sendDataFrame(uint8_t*, uint8_t, uint8_t);
+void resendDataFrame();
 void startTransmission();
 void endTransmission();
 void receiveBit(uint8_t, bool);

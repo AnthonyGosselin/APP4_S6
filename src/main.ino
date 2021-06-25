@@ -4,7 +4,7 @@
 
 SYSTEM_THREAD(ENABLED);
 
-bool isVerbose = false;
+bool isVerbose = true;
 
 system_tick_t messageTime = 0;
 
@@ -33,7 +33,7 @@ void messageThread() {
     while (true) {
         
         os_thread_delay_until(&messageTime, 2000);
-        //Serial.println("\n\nLoop");
+        Serial.println("\n\nLoop");
 
         // uint8_t message1[4] = {1, 0, 1, 0}; // :)
         // uint8_t message1Size = 4;
@@ -51,7 +51,7 @@ void messageThread() {
 
         char* message3 = "Hello! My name is Etienne. Nice to meet you!";
         uint8_t message3Size = 45;
-        sendMessage((uint8_t*)message3, message3Size, false);
+        sendMessage((uint8_t*)message3, message3Size);
 
         os_thread_delay_until(&messageTime, 10000);
     }

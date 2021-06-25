@@ -24,29 +24,28 @@ Frame receivingFrameObj;
 
 bool readyToSendFrame = false;
 
-uint8_t currentByteBuffer[87];
+//uint8_t currentByteBuffer[87];
 
 
-void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
+void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, uint8_t ACKFlag) {
 
     uint8_t *byteArray = new uint8_t[messageSize+7];
-    //Serial.printlnf("RECEIVED DATA SIZE %d", messageSize);
+    Serial.printlnf("RECEIVED DATA SIZE %d", messageSize);
     sendingFrameObj = Frame();
+
+    // Set ACK messages received ACK to true to not loop ACKs to ACK messages
+    if(ACKFlag != 0b00000000){
+        sendingFrameObj.receivedACK = true;
+    }
 
     // Set at first/doesnt change (preamb, start)
     byteArray[0] = sendingFrameObj.preambule; 
     byteArray[1] = sendingFrameObj.start;
 
     // Add flag if is ACK to previous message
-    if(isACK){
-        sendingFrameObj.typeFlag = 0b00000001;
-        byteArray[2] = sendingFrameObj.typeFlag; 
-    }
-    else{
-        sendingFrameObj.typeFlag = 0b00000000;
-        byteArray[2] = sendingFrameObj.typeFlag; 
-    }
-    
+    sendingFrameObj.typeFlag = ACKFlag;
+    byteArray[2] = sendingFrameObj.typeFlag; 
+
     // Get message length
     sendingFrameObj.messageLength = messageSize;
     byteArray[3] = sendingFrameObj.messageLength;
@@ -79,10 +78,15 @@ void sendDataFrame(uint8_t* messageToSend, uint8_t messageSize, bool isACK) {
         }
     }
 
-
     delete[] byteArray;
     sendingFrameObjList[sendingFrameObjIndex] = sendingFrameObj;
     sendingFrameObjIndex++;
+};
+
+void resendDataFrame() {
+    // If ACK not received by the time we get new message to send, 
+    sendingFrameObj.frameOutputSpeed += 2;
+    currentSendingFrameObjIndex--;
 };
 
 void resetCounters(){
@@ -93,7 +97,9 @@ void resetCounters(){
 
 void receiveBit(uint8_t bitReceived, bool isFullByte){
 
-    if(!bitCounter){
+    Serial.printlnf("Received %d", bitReceived);
+
+    if(bitCounter == 0){
         receivingFrameObj = Frame();
     }
 
@@ -109,7 +115,7 @@ void receiveBit(uint8_t bitReceived, bool isFullByte){
     
     if (!(bitCounter % 8)){
         //receiveData(byteConcat);
-        currentByteBuffer[byteCounter] = byteConcat;
+        receivingFrameObj.byteArray[byteCounter] = byteConcat;
 
         if(byteCounter == 3){
             //Serial.printlnf("Message Length: %d", byteConcat);
@@ -117,6 +123,7 @@ void receiveBit(uint8_t bitReceived, bool isFullByte){
         }
 
         if(byteCounter >= receivingFrameObj.messageLength-1+7){
+            Serial.println("Ending transmission1");
             endTransmission();
         }
         //Serial.printlnf("Byte Counter: %d", byteCounter);
@@ -127,7 +134,9 @@ void receiveBit(uint8_t bitReceived, bool isFullByte){
 
 void endTransmission(){
 
-    receivingFrameObj.spliceByteArray();
+    Serial.println("Ending transmission2");
+
+    //receivingFrameObj.spliceByteArray();
 
     uint16_t fullCRC16 =  receivingFrameObj.crc16[0] << 8 | receivingFrameObj.crc16[1];
     uint16_t crc16Result = crc16(&receivingFrameObj.message[0], receivingFrameObj.messageLength);
@@ -138,7 +147,7 @@ void endTransmission(){
     receivingFrameObjList[receivingFrameObjIndex] = receivingFrameObj;
     receivingFrameObjIndex++;
 
-    receiveMessage(receivingFrameObj.message);
+    receiveMessage(receivingFrameObj.message, receivingFrameObj.typeFlag);
 
 }
 
@@ -265,7 +274,7 @@ void calcCRCNSend(){
 
     receivingFrameObjList[receivingFrameObjIndex] = receivingFrameObj;
 
-    receiveMessage(&receivingFrameObjList[receivingFrameObjIndex].message[0]);
+    receiveMessage(&receivingFrameObjList[receivingFrameObjIndex].message[0], receivingFrameObjList[receivingFrameObjIndex].typeFlag);
 }
 
 uint16_t crc16(const uint8_t* data_p, uint8_t length){
